@@ -11,12 +11,14 @@ public class DiscountService : IDiscountService
 {
     private readonly IDiscountRepository _discountRepository;
     private readonly IOrderRepository _orderRepository;
+    private readonly IPaymentRepository _paymentRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public DiscountService(IDiscountRepository discountRepository, IOrderRepository orderRepository, IUnitOfWork unitOfWork)
+    public DiscountService(IDiscountRepository discountRepository, IOrderRepository orderRepository, IPaymentRepository paymentRepository, IUnitOfWork unitOfWork)
     {
         _discountRepository = discountRepository;
         _orderRepository = orderRepository;
+        _paymentRepository = paymentRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -62,7 +64,7 @@ public class DiscountService : IDiscountService
 
         await _discountRepository.AddAsync(discount, cancellationToken);
         order.Discounts.Add(discount);
-        RecalculateOrderTotals(order);
+        await RecalculateOrderTotalsAsync(order, cancellationToken);
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -86,7 +88,7 @@ public class DiscountService : IDiscountService
         if (order != null)
         {
             order.Discounts = await _discountRepository.GetByOrderIdAsync(order.Id, cancellationToken);
-            RecalculateOrderTotals(order);
+            await RecalculateOrderTotalsAsync(order, cancellationToken);
             _orderRepository.Update(order);
         }
 
@@ -112,7 +114,7 @@ public class DiscountService : IDiscountService
         return Result<decimal>.Success(amount);
     }
 
-    private static void RecalculateOrderTotals(Order order)
+    private async Task RecalculateOrderTotalsAsync(Order order, CancellationToken cancellationToken)
     {
         order.DiscountAmount = order.Discounts.Where(x => !x.IsDeleted).Sum(x => x.Amount);
         order.TotalAmount = order.SubTotal - order.DiscountAmount + order.TipAmount;
@@ -121,6 +123,7 @@ public class DiscountService : IDiscountService
             order.TotalAmount = 0;
         }
 
+        order.Payments = await _paymentRepository.GetByOrderIdAsync(order.Id, cancellationToken);
         var paidAmount = order.Payments.Where(x => !x.IsDeleted && x.Status == PaymentStatus.Paid).Sum(x => x.Amount);
         order.PaymentStatus = paidAmount <= 0
             ? PaymentStatus.Unpaid

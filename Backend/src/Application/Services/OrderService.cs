@@ -281,6 +281,11 @@ public class OrderService : IOrderService
             return Result<GetOrderDto>.Failure("Invalid order status.");
         }
 
+        if (dto.Status == OrderStatus.Closed || dto.Status == OrderStatus.Cancelled)
+        {
+            await RecalculateOrderTotalsAsync(order, cancellationToken);
+        }
+
         if (!CanMoveToStatus(order, dto.Status))
         {
             return Result<GetOrderDto>.Failure("Invalid order status transition.");
@@ -320,6 +325,7 @@ public class OrderService : IOrderService
             return Result<GetOrderDto>.Failure("Cannot cancel closed order.");
         }
 
+        await RecalculateOrderTotalsAsync(order, cancellationToken);
         if (order.PaymentStatus == PaymentStatus.Paid)
         {
             return Result<GetOrderDto>.Failure("Cannot cancel paid order without refund logic.");

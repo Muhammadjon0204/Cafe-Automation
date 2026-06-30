@@ -164,7 +164,7 @@ public class ReservationService : IReservationService
             }
             else if (dto.Status == ReservationStatus.Completed || dto.Status == ReservationStatus.Cancelled)
             {
-                table.Status = await HasOtherActiveReservationAsync(reservation, cancellationToken) ? TableStatus.Reserved : TableStatus.Free;
+                table.Status = TableStatus.Free;
             }
 
             table.UpdatedAt = DateTime.UtcNow;
@@ -221,17 +221,6 @@ public class ReservationService : IReservationService
         if (!ServiceHelpers.HasMaxLength(note, 500)) return Result.Failure("Note must be 500 characters or less.");
         if (await _reservationRepository.HasConflictAsync(tableId, reservedAt, reservedUntil, excludeId, cancellationToken)) return Result.Failure("Reservation conflicts with another reservation.");
         return Result.Success();
-    }
-
-    private async Task<bool> HasOtherActiveReservationAsync(Reservation reservation, CancellationToken cancellationToken)
-    {
-        var reservations = await _reservationRepository.GetAllAsync(cancellationToken);
-        return reservations.Any(x =>
-            x.Id != reservation.Id &&
-            !x.IsDeleted &&
-            x.CafeTableId == reservation.CafeTableId &&
-            x.Status != ReservationStatus.Cancelled &&
-            x.Status != ReservationStatus.Completed);
     }
 
     private static GetReservationDto MapToDto(Reservation reservation)

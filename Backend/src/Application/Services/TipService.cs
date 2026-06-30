@@ -12,13 +12,15 @@ public class TipService : ITipService
     private readonly ITipRepository _tipRepository;
     private readonly IOrderRepository _orderRepository;
     private readonly IStaffMemberRepository _staffRepository;
+    private readonly IPaymentRepository _paymentRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public TipService(ITipRepository tipRepository, IOrderRepository orderRepository, IStaffMemberRepository staffRepository, IUnitOfWork unitOfWork)
+    public TipService(ITipRepository tipRepository, IOrderRepository orderRepository, IStaffMemberRepository staffRepository, IPaymentRepository paymentRepository, IUnitOfWork unitOfWork)
     {
         _tipRepository = tipRepository;
         _orderRepository = orderRepository;
         _staffRepository = staffRepository;
+        _paymentRepository = paymentRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -63,7 +65,7 @@ public class TipService : ITipService
 
         await _tipRepository.AddAsync(tip, cancellationToken);
         order.Tips.Add(tip);
-        RecalculateOrderTotals(order);
+        await RecalculateOrderTotalsAsync(order, cancellationToken);
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result<GetTipDto>.Success(MapToDto(tip), "Tip added.");
@@ -86,7 +88,7 @@ public class TipService : ITipService
         if (order != null)
         {
             order.Tips = await _tipRepository.GetByOrderIdAsync(order.Id, cancellationToken);
-            RecalculateOrderTotals(order);
+            await RecalculateOrderTotalsAsync(order, cancellationToken);
             _orderRepository.Update(order);
         }
 
@@ -111,7 +113,7 @@ public class TipService : ITipService
         return Result.Success();
     }
 
-    private static void RecalculateOrderTotals(Order order)
+    private async Task RecalculateOrderTotalsAsync(Order order, CancellationToken cancellationToken)
     {
         order.TipAmount = order.Tips.Where(x => !x.IsDeleted).Sum(x => x.Amount);
         order.TotalAmount = order.SubTotal - order.DiscountAmount + order.TipAmount;
@@ -120,6 +122,13 @@ public class TipService : ITipService
             order.TotalAmount = 0;
         }
 
+        order.Payments = await _paymentRepository.GetByOrderIdAsync(order.Id, cancellationToken);
+        var paidAmount = order.Payments.Where(x => !x.IsDeleted && x.Status == PaymentStatus.Paid).Sum(x => x.Amount);
+        order.PaymentStatus = paidAmount <= 0
+            ? PaymentStatus.Unpaid
+            : paidAmount < order.TotalAmount
+                ? PaymentStatus.PartiallyPaid
+                : PaymentStatus.Paid;
         order.UpdatedAt = DateTime.UtcNow;
     }
 
