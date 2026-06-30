@@ -1,0 +1,367 @@
+# =========================================================
+# Cafe Automation System - Global .gitignore
+# Backend: .NET 10 / ASP.NET Core / EF Core / PostgreSQL
+# Frontend: React / Next.js / Vite / Node
+# Mobile: Flutter
+# =========================================================
+
+
+# =========================================================
+# OS files
+# =========================================================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+
+$RECYCLE.BIN/
+*.lnk
+
+
+# =========================================================
+# IDE / Editors
+# =========================================================
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+*.rsuser
+*.sln.DotSettings.user
+
+.history/
+.ionide/
+
+
+# =========================================================
+# Visual Studio / Rider / .NET
+# =========================================================
+
+[Bb]in/
+[Oo]bj/
+
+.vs/
+_ReSharper*/
+*.ReSharper
+*.DotSettings.user
+
+TestResults/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+*.ncrunch*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+*.coverage
+*.coveragexml
+coverage/
+coverage-final.json
+
+artifacts/
+packages/
+
+*.nupkg
+*.snupkg
+*.symbols.nupkg
+
+project.lock.json
+project.assets.json
+
+*.dll
+*.exe
+*.pdb
+
+# Keep source files, ignore generated debug files
+*.cache
+*.log
+
+
+# =========================================================
+# ASP.NET Core / Backend secrets
+# =========================================================
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local appsettings
+appsettings.Local.json
+appsettings.Development.local.json
+appsettings.Production.local.json
+appsettings.Staging.local.json
+appsettings.*.local.json
+
+# User secrets are not stored in project normally,
+# but ignore if accidentally exported
+secrets.json
+user-secrets.json
+
+# Logs
+Logs/
+logs/
+*.log
+
+# Uploads / generated files
+wwwroot/uploads/
+wwwroot/files/
+wwwroot/images/generated/
+uploads/
+files/
+
+# SQLite local db if used for tests
+*.db
+*.sqlite
+*.sqlite3
+
+# EF generated migration bundles
+efbundle
+efbundle.exe
+
+
+# =========================================================
+# PostgreSQL / Database backups
+# =========================================================
+
+*.bak
+*.backup
+*.dump
+*.sql.gz
+*.psql
+
+
+# =========================================================
+# Docker
+# =========================================================
+
+.docker/
+docker-compose.override.yml
+
+# Keep main docker files
+!Dockerfile
+!docker-compose.yml
+
+# Docker env files
+*.env.docker
+.env.docker
+
+
+# =========================================================
+# Node / Frontend
+# React / Next.js / Vite / Vue / Angular
+# =========================================================
+
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.pnpm-store/
+.yarn/
+.yarn-cache/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+
+# Frontend cache
+.cache/
+.parcel-cache/
+.turbo/
+.eslintcache
+.stylelintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# Frontend env
+Frontend/.env
+Frontend/.env.*
+!Frontend/.env.example
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Vite
+*.local
+
+
+# =========================================================
+# Flutter / Dart / Mobile
+# =========================================================
+
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Flutter generated
+GeneratedPluginRegistrant.*
+
+# Flutter web build
+Mobile/build/
+mobile/build/
+
+# Flutter env/config
+Mobile/.env
+Mobile/.env.*
+!Mobile/.env.example
+
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
+
+# Android
+**/android/.gradle/
+**/android/local.properties
+**/android/gradle-wrapper.jar
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/app/*.jks
+**/android/key.properties
+
+# Android Studio
+*.iml
+.gradle/
+local.properties
+
+# iOS
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Runner.xcworkspace/xcuserdata/
+**/ios/Runner.xcodeproj/xcuserdata/
+**/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# macOS Flutter
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+**/macos/.symlinks/
+**/macos/Runner.xcworkspace/xcuserdata/
+**/macos/Runner.xcodeproj/xcuserdata/
+
+# Windows Flutter
+**/windows/flutter/ephemeral/
+
+# Linux Flutter
+**/linux/flutter/ephemeral/
+
+# Flutter coverage
+coverage/
+
+
+# =========================================================
+# Firebase / Google / Apple secrets
+# =========================================================
+
+google-services.json
+GoogleService-Info.plist
+
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+
+# =========================================================
+# Certificates / Keys / Secrets
+# =========================================================
+
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.jks
+
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+private.key
+public.key
+
+
+# =========================================================
+# Temporary files
+# =========================================================
+
+tmp/
+temp/
+.tmp/
+.temp/
+
+*.tmp
+*.temp
+*.swp
+*.swo
+
+~$*
+*.bak
+*.old
+*.orig
+
+
+# =========================================================
+# Reports / generated docs
+# =========================================================
+
+*.trx
+*.xmlcoverage
+
+report/
+reports/generated/
+docs/generated/
+
+
+# =========================================================
+# JetBrains
+# =========================================================
+
+.idea/
+*.iws
+*.ipr
+
+
+# =========================================================
+# Optional: AI agent temporary files
+# =========================================================
+
+.codex/
+.ai/
+.agent/
+.cursor/
+continue.session
