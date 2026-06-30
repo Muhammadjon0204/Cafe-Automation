@@ -1,0 +1,22 @@
+﻿using Cafe.Domain.Enums;
+
+namespace Cafe.Application.DTOs.CafeTables;
+
+public class GetCafeTableDto
+{
+    public int Id { get; set; }
+
+    public int TableNumber { get; set; }
+
+    public int SeatsCount { get; set; }
+
+    public TableStatus Status { get; set; }
+
+    public string? Location { get; set; }
+
+    public string? Note { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+}
