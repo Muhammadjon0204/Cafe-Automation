@@ -3,6 +3,7 @@ using Cafe.Application.DTOs.Dishes;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
+using Cafe.Application.Services.Dishes.Specifications;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -23,31 +24,9 @@ public class DishService : IDishService
 
     public async Task<Result<PagedResult<GetDishDto>>> GetAllAsync(DishFilterDto filter, CancellationToken cancellationToken = default)
     {
-        var dishes = await _dishRepository.GetAllAsync(cancellationToken);
-        var query = dishes.Where(x => !x.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var search = filter.Search.Trim();
-            query = query.Where(x =>
-                x.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                (x.Description != null && x.Description.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                (x.IngredientsDescription != null && x.IngredientsDescription.Contains(search, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        if (filter.CategoryId.HasValue) query = query.Where(x => x.CategoryId == filter.CategoryId.Value);
-        if (filter.IsAvailable.HasValue) query = query.Where(x => x.IsAvailable == filter.IsAvailable.Value);
-        if (filter.IsSeasonal.HasValue) query = query.Where(x => x.IsSeasonal == filter.IsSeasonal.Value);
-        if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
-        if (filter.Type.HasValue) query = query.Where(x => x.Type == filter.Type.Value);
-        if (filter.MinPrice.HasValue) query = query.Where(x => x.Price >= filter.MinPrice.Value);
-        if (filter.MaxPrice.HasValue) query = query.Where(x => x.Price <= filter.MaxPrice.Value);
-
-        var result = PaginationHelper.CreatePagedResult(
-            query.OrderBy(x => x.Name).Select(MapToDto),
-            filter.PageNumber,
-            filter.PageSize);
-
+        var spec = new DishFilterSpecification(filter);
+        var pagedDishes = await _dishRepository.GetAsync(spec, cancellationToken);
+        var result = pagedDishes.MapTo(MapToDto);
         return Result<PagedResult<GetDishDto>>.Success(result);
     }
 

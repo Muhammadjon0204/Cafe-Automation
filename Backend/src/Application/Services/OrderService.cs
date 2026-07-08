@@ -3,6 +3,7 @@ using Cafe.Application.DTOs.Orders;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
+using Cafe.Application.Services.Orders.Specifications;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -47,29 +48,9 @@ public class OrderService : IOrderService
 
     public async Task<Result<PagedResult<GetOrderDto>>> GetAllAsync(OrderFilterDto filter, CancellationToken cancellationToken = default)
     {
-        var orders = await _orderRepository.GetAllAsync(cancellationToken);
-        var query = orders.Where(x => !x.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var search = filter.Search.Trim();
-            query = query.Where(x =>
-                x.OrderNumber.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                (x.Note != null && x.Note.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                ServiceHelpers.BuildCustomerName(x.Customer).Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                ServiceHelpers.BuildStaffName(x.Waiter).Contains(search, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
-        if (filter.Type.HasValue) query = query.Where(x => x.Type == filter.Type.Value);
-        if (filter.PaymentStatus.HasValue) query = query.Where(x => x.PaymentStatus == filter.PaymentStatus.Value);
-        if (filter.CustomerId.HasValue) query = query.Where(x => x.CustomerId == filter.CustomerId.Value);
-        if (filter.CafeTableId.HasValue) query = query.Where(x => x.CafeTableId == filter.CafeTableId.Value);
-        if (filter.WaiterId.HasValue) query = query.Where(x => x.WaiterId == filter.WaiterId.Value);
-        if (filter.FromDate.HasValue) query = query.Where(x => x.OrderedAt >= filter.FromDate.Value);
-        if (filter.ToDate.HasValue) query = query.Where(x => x.OrderedAt <= filter.ToDate.Value);
-
-        var result = PaginationHelper.CreatePagedResult(query.OrderByDescending(x => x.OrderedAt).Select(MapToDto), filter.PageNumber, filter.PageSize);
+        var spec = new OrderFilterSpecification(filter);
+        var pagedOrders = await _orderRepository.GetAsync(spec, cancellationToken);
+        var result = pagedOrders.MapTo(MapToDto);
         return Result<PagedResult<GetOrderDto>>.Success(result);
     }
 

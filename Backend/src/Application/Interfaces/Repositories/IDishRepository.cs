@@ -1,10 +1,12 @@
-﻿using Cafe.Domain.Entities;
+﻿using Cafe.Application.Common.Specifications;
+using Cafe.Application.Results;
+using Cafe.Domain.Entities;
 
 namespace Cafe.Application.Interfaces.Repositories;
 
 public interface IDishRepository
 {
-    Task<List<Dish>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<Dish>> GetAsync(ISpecification<Dish> spec, CancellationToken cancellationToken = default);
 
     Task<Dish?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 

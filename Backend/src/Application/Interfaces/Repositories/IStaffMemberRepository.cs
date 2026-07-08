@@ -1,10 +1,12 @@
-﻿using Cafe.Domain.Entities;
+﻿using Cafe.Application.Common.Specifications;
+using Cafe.Application.Results;
+using Cafe.Domain.Entities;
 
 namespace Cafe.Application.Interfaces.Repositories;
 
 public interface IStaffMemberRepository
 {
-    Task<List<StaffMember>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<StaffMember>> GetAsync(ISpecification<StaffMember> spec, CancellationToken cancellationToken = default);
 
     Task<StaffMember?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 

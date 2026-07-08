@@ -1,10 +1,12 @@
-﻿using Cafe.Domain.Entities;
+﻿using Cafe.Application.Common.Specifications;
+using Cafe.Application.Results;
+using Cafe.Domain.Entities;
 
 namespace Cafe.Application.Interfaces.Repositories;
 
 public interface IReservationRepository
 {
-    Task<List<Reservation>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<Reservation>> GetAsync(ISpecification<Reservation> spec, CancellationToken cancellationToken = default);
 
     Task<Reservation?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 

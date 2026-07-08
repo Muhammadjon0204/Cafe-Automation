@@ -1,10 +1,12 @@
-﻿using Cafe.Domain.Entities;
+﻿using Cafe.Application.Common.Specifications;
+using Cafe.Application.Results;
+using Cafe.Domain.Entities;
 
 namespace Cafe.Application.Interfaces.Repositories;
 
 public interface IOrderRepository
 {
-    Task<List<Order>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<Order>> GetAsync(ISpecification<Order> spec, CancellationToken cancellationToken = default);
 
     Task<Order?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 

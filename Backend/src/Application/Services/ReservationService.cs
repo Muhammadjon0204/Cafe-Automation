@@ -3,6 +3,7 @@ using Cafe.Application.DTOs.Reservations;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
+using Cafe.Application.Services.Reservations.Specifications;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -25,24 +26,9 @@ public class ReservationService : IReservationService
 
     public async Task<Result<PagedResult<GetReservationDto>>> GetAllAsync(ReservationFilterDto filter, CancellationToken cancellationToken = default)
     {
-        var reservations = await _reservationRepository.GetAllAsync(cancellationToken);
-        var query = reservations.Where(x => !x.IsDeleted);
-
-        if (filter.CafeTableId.HasValue) query = query.Where(x => x.CafeTableId == filter.CafeTableId.Value);
-        if (filter.CustomerId.HasValue) query = query.Where(x => x.CustomerId == filter.CustomerId.Value);
-        if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
-        if (filter.FromDate.HasValue) query = query.Where(x => x.ReservedAt >= filter.FromDate.Value);
-        if (filter.ToDate.HasValue) query = query.Where(x => x.ReservedAt <= filter.ToDate.Value);
-
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var search = filter.Search.Trim();
-            query = query.Where(x =>
-                x.CustomerName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                (x.Phone != null && x.Phone.Contains(search, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        var result = PaginationHelper.CreatePagedResult(query.OrderByDescending(x => x.ReservedAt).Select(MapToDto), filter.PageNumber, filter.PageSize);
+        var spec = new ReservationFilterSpecification(filter);
+        var pagedReservations = await _reservationRepository.GetAsync(spec, cancellationToken);
+        var result = pagedReservations.MapTo(MapToDto);
         return Result<PagedResult<GetReservationDto>>.Success(result);
     }
 

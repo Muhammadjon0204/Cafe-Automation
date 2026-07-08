@@ -3,6 +3,7 @@ using Cafe.Application.DTOs.Staff;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
+using Cafe.Application.Services.Staff.Specifications;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -21,28 +22,9 @@ public class StaffMemberService : IStaffMemberService
 
     public async Task<Result<PagedResult<GetStaffMemberDto>>> GetAllAsync(StaffMemberFilterDto filter, CancellationToken cancellationToken = default)
     {
-        var staff = await _staffRepository.GetAllAsync(cancellationToken);
-        var query = staff.Where(x => !x.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var search = filter.Search.Trim();
-            query = query.Where(x =>
-                x.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                x.LastName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                (x.MiddleName != null && x.MiddleName.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                (x.Phone != null && x.Phone.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                (x.Email != null && x.Email.Contains(search, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        if (filter.Role.HasValue) query = query.Where(x => x.Role == filter.Role.Value);
-        if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
-
-        var result = PaginationHelper.CreatePagedResult(
-            query.OrderBy(x => x.LastName).ThenBy(x => x.FirstName).Select(MapToDto),
-            filter.PageNumber,
-            filter.PageSize);
-
+        var spec = new StaffMemberFilterSpecification(filter);
+        var pagedStaff = await _staffRepository.GetAsync(spec, cancellationToken);
+        var result = pagedStaff.MapTo(MapToDto);
         return Result<PagedResult<GetStaffMemberDto>>.Success(result);
     }
 
