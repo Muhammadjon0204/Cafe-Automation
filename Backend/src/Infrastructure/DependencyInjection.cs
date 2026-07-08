@@ -21,10 +21,18 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
 
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IStaffMemberRepository, StaffMemberRepository>();
         services.AddScoped<IDishRepository, DishRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<ICafeTableRepository, CafeTableRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<IDiscountRepository, DiscountRepository>();
+        services.AddScoped<ITipRepository, TipRepository>();
 
         return services;
     }

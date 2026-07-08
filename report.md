@@ -290,3 +290,104 @@ Build succeeded.
 0 Warning(s)
 0 Error(s)
 ```
+
+## Part 3 — Closing out Infrastructure: open decisions, IUnitOfWork, and the remaining six repositories
+
+This pass closed the two open questions left at the end of Part 2 and implemented every remaining piece needed for `dotnet run` to bring the host up without a DI resolution failure.
+
+### Open decision 1 — StaffMember secondary sort key
+
+The `ISpecification<T>` contract from Step 0 only supported a single `OrderBy`/`OrderByDescending`. Extended it with `ThenBy`/`ThenByDescending` (`Expression<Func<T, object>>?`), mirroring the existing pair rather than inventing a new shape:
+
+- `ISpecification<T>` — added `ThenBy`/`ThenByDescending` properties.
+- `BaseSpecification<T>` — added `ApplyThenBy`/`ApplyThenByDescending` protected setters.
+- `SpecificationEvaluator<T>.GetQuery` — after `OrderBy`/`OrderByDescending` produces an `IOrderedQueryable<T>`, a private `ApplyThenBy` helper conditionally chains `.ThenBy()`/`.ThenByDescending()`. `ThenBy` is structurally only reachable once a primary order exists, since it's chained off the `IOrderedQueryable<T>` returned by `OrderBy`/`OrderByDescending` — there's no code path where it could apply without a primary sort.
+
+Applied to exactly one place, as scoped: `StaffMemberFilterSpecification` now calls `ApplyOrderBy(x => x.LastName)` followed by `ApplyThenBy(x => x.FirstName)`, restoring the original `OrderBy(LastName).ThenBy(FirstName)` behavior. `OrderFilterSpecification`, `DishFilterSpecification`, and `ReservationFilterSpecification` were left untouched — none of them had a secondary sort key in the original in-memory code.
+
+### Open decision 2 — Reservation booking buffer
+
+`ReservationRepository.HasConflictAsync` now enforces a 15-minute buffer between bookings on the same table:
+
+```csharp
+private const int BufferMinutes = 15;
+```
+
+Placed as a `private const` directly inside `ReservationRepository`, not in `appsettings`/an `IOptions` class — nothing else in the codebase reads this value, and there's no configuration-binding plumbing set up anywhere yet to justify introducing one for a single constant. The overlap check expands the *requested* interval by the buffer on both ends (`[reservedAt - 15min, effectiveEnd + 15min]`) and tests that against each existing active reservation's own (unexpanded) interval — mathematically equivalent to requiring at least a 15-minute gap between any two bookings on the same table. This still sits on top of the same authored assumption flagged in Part 2 (a missing `ReservedUntil` is treated as a zero-length booking, `Cancelled`/`Completed` reservations never block) — that assumption has not been separately re-confirmed, only extended with the buffer.
+
+### IUnitOfWork
+
+`Infrastructure/UnitOfWork.cs` — a single-line wrapper around `AppDbContext.SaveChangesAsync`. No manual `BeginTransaction`/`TransactionScope` was added: every service method audited in Part 1/2 stages all its changes on one injected `AppDbContext` and calls `SaveChangesAsync` exactly once per operation, which EF Core already wraps in an implicit atomic transaction. No scenario surfaced anywhere in the codebase where a single logical operation spans two different `DbContext` instances, so there was nothing to justify more than this.
+
+### The remaining six repositories
+
+Implemented with **no** Specification Pattern / `IQueryable` exposure, per explicit scope — these six services (`CategoryService`, `CustomerService`, `CafeTableService`, and the read paths of `PaymentService`/`DiscountService`/`TipService`) stay on the old in-memory `PaginationHelper.CreatePagedResult(IEnumerable<T>, ...)` path, tracked as its own future backlog item:
+
+| Repository | Interface members implemented | Notes |
+|---|---|---|
+| `CategoryRepository` | `GetAllAsync`, `GetByIdAsync`, `GetByIdWithDishesAsync`, `AddAsync`, `Update`, `Delete`, `ExistsAsync`, `NameExistsAsync`, `HasActiveDishesAsync` | See "Include decisions" and "Business-rule interpretation" below |
+| `CustomerRepository` | `GetAllAsync`, `GetByIdAsync`, `AddAsync`, `Update`, `Delete`, `ExistsAsync`, `PhoneExistsAsync`, `EmailExistsAsync` | See "Include decisions" below |
+| `CafeTableRepository` | `GetAllAsync`, `GetByIdAsync`, `AddAsync`, `Update`, `Delete`, `ExistsAsync`, `TableNumberExistsAsync` | No navigation properties needed anywhere — `CafeTableService.MapToDto` reads only scalar fields |
+| `PaymentRepository` | `GetAllAsync`, `GetByIdAsync`, `GetByOrderIdAsync`, `AddAsync`, `Update`, `Delete`, `GetPaidAmountByOrderIdAsync` | See "Unused interface members" below |
+| `DiscountRepository` | `GetByIdAsync`, `GetByOrderIdAsync`, `AddAsync`, `Update`, `Delete` | See "Include decisions" below |
+| `TipRepository` | `GetByIdAsync`, `GetByOrderIdAsync`, `AddAsync`, `Update`, `Delete` | See "Include decisions" below |
+
+All six registered in `Infrastructure/DependencyInjection.cs` alongside `IUnitOfWork`.
+
+### Include decisions — the same judgment call as Part 2's StaffMember/Reservation, applied consistently
+
+The policy carried over from Part 2: when a repository method's result flows directly into that service's own (untouched) `MapToDto`, the navigation properties `MapToDto` reads were `.Include()`-d so the existing mapping code actually produces correct data. Where the interface already provides a separate, more specific method (`GetByIdWithDishesAsync` next to `GetByIdAsync`), the plain method was left un-included, preserving the light/detailed distinction the interface's own shape implies.
+
+- **Category** — `GetAllAsync` and `GetByIdWithDishesAsync` both `.Include(x => x.Dishes)` (needed for `DishesCount` in `MapToDto`). Plain `GetByIdAsync` does **not** include `Dishes`. Flagging explicitly: `CategoryService.UpdateAsync` and `CategoryService.DeleteAsync` both fetch via the plain `GetByIdAsync` and then call `MapToDto` on that same result — meaning the `GetCategoryDto` returned from those two operations will show `DishesCount: 0` regardless of the category's real dish count. This is a **pre-existing gap in `CategoryService` itself** (not touched in this session) — widening the plain `GetByIdAsync`'s `Include` to paper over it would erase the only reason the interface has two separate methods, so it was left as-is and is called out here instead of silently "fixed" by guessing which behavior was intended.
+- **Customer** — both `GetAllAsync` and `GetByIdAsync` `.Include(x => x.Orders)` (needed for `OrdersCount`). No separate detailed method exists for Customer at all, so both had to carry it.
+- **Discount** — `GetByOrderIdAsync` `.Include(x => x.Order)` (needed for `OrderNumber` in `MapToDto`, called from `DiscountService.GetByOrderIdAsync`). Plain `GetByIdAsync` does not include `Order` — its only caller, `DiscountService.DeleteAsync`, never maps the result to a DTO.
+- **Tip** — `GetByOrderIdAsync` `.Include(x => x.Order).Include(x => x.StaffMember)` (needed for `OrderNumber`/`StaffMemberName`, called from `TipService.GetByOrderIdAsync`). Plain `GetByIdAsync` left un-included for the same reason as Discount.
+- **Payment** — see "Unused interface members" immediately below; `GetAllAsync`/`GetByIdAsync` were given the same `Include(Order).Include(Cashier)` shape as `GetByOrderIdAsync` purely for internal consistency across three structurally identical listing methods on the same entity, not because any caller currently needs it.
+
+### Unused interface members — flagged rather than guessed
+
+- **`IPaymentRepository.GetAllAsync`, `GetByIdAsync`, `Update`, `Delete`** are not called anywhere in `PaymentService` (verified — `PaymentService` only calls `GetByOrderIdAsync`, `AddAsync`, and `GetPaidAmountByOrderIdAsync`). Implemented faithfully against the interface contract, but their `Include` shape is unverified against any real call site since none currently exists.
+- **`PaymentService.CreateAsync` and `TipService.AddAsync` build their entity in memory** (`new Payment { ..., Order = order, ... }` / `new Tip { ..., Order = order, ... }`) and never set the `.Cashier` / `.StaffMember` navigation, even though `CashierId` / `StaffMemberId` is set. Their own `MapToDto` calls (`ServiceHelpers.BuildStaffName(payment.Cashier)` / `BuildStaffName(tip.StaffMember)`) will therefore render an empty name immediately after creation, even though the ID was stored correctly. This is a **pre-existing gap in those two service methods** — not reachable or fixable from the repository layer, since the entity is never re-fetched through a repository call in that code path. Flagged, not touched (`PaymentService.cs`/`TipService.cs` were out of scope for this session).
+
+### Business-rule interpretation made without an explicit spec
+
+`CategoryRepository.HasActiveDishesAsync` interprets "active" as `Dish.Status == DishStatus.Active` — chosen because that exact enum value already exists and is used with that meaning elsewhere (`DishService.DeleteAsync` sets `Status = DishStatus.Archived` on soft-delete). Not a blind guess, but also never explicitly specified anywhere as the definition of "active" for this particular guard (`CategoryService.DeleteAsync`'s "category has active dishes" check) — noted in case a different definition (e.g. also requiring `IsAvailable == true`) was intended.
+
+### Files touched outside the originally scoped list — and why
+
+Making `dotnet run` a meaningful check (rather than one that trivially passes because nothing is wired up) required two files not on the original list:
+
+- **`Backend/src/Api/Program.cs`** — added `builder.Services.AddInfrastructure(builder.Configuration);`. Without this, `AddInfrastructure`'s registrations (everything built in this session, plus Part 2's four Specification-based repositories) would never actually enter the application's DI container, and the run-verification step would have been checking nothing.
+- **`Backend/src/Api/appsettings.Development.json`** — added a `ConnectionStrings:DefaultConnection` entry (`Host=localhost;Port=5432;Database=cafe_automation;Username=postgres;Password=postgres`, a local-dev placeholder, not a secret). `AddInfrastructure` throws `InvalidOperationException` immediately at startup if this key is missing, which it was.
+
+Neither change touches `appsettings.json` (production config remains unset, as it should).
+
+### Run verification
+
+```powershell
+dotnet run --project Backend/src/Api/Api.csproj --no-build --urls http://localhost:5299
+```
+
+```text
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5299
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+```
+
+No DI resolution exceptions. Followed up with an actual HTTP request against the running host rather than just checking the process didn't crash:
+
+```text
+GET http://localhost:5299/weatherforecast → HTTP 200
+```
+
+**Caveat, stated plainly:** this confirms the DI container now builds successfully and the host serves a request — it does **not** mean every service in the codebase is resolvable. `AuthService` (needs `IIdentityService`/`ITokenService`), `DashboardService`/`ReportService` (need `IDashboardRepository`/`IReportRepository`), and `ICacheService` still have zero implementations. `dotnet run` succeeds only because `Program.cs` still has no controllers requesting any of them at startup — the moment a controller or minimal-API endpoint is added that resolves `IAuthService` (etc.) through DI, that specific request would fail. Everything that was in this session's explicit scope (`IUnitOfWork` + the ten repository interfaces across both Part 2 and Part 3) is now implemented and registered.
+
+### Final build and run status
+
+```text
+dotnet build Backend/CafeAutomation.slnx → Build succeeded. 0 Warning(s). 0 Error(s).
+dotnet run (Api, --no-build)             → Host started, GET /weatherforecast → 200 OK.
+```

@@ -23,6 +23,10 @@ public abstract class BaseSpecification<T> : ISpecification<T>
 
     public Expression<Func<T, object>>? OrderByDescending { get; private set; }
 
+    public Expression<Func<T, object>>? ThenBy { get; private set; }
+
+    public Expression<Func<T, object>>? ThenByDescending { get; private set; }
+
     public int Skip { get; private set; }
 
     public int Take { get; private set; }
@@ -47,6 +51,16 @@ public abstract class BaseSpecification<T> : ISpecification<T>
     protected void ApplyOrderByDescending(Expression<Func<T, object>> orderByDescendingExpression)
     {
         OrderByDescending = orderByDescendingExpression;
+    }
+
+    protected void ApplyThenBy(Expression<Func<T, object>> thenByExpression)
+    {
+        ThenBy = thenByExpression;
+    }
+
+    protected void ApplyThenByDescending(Expression<Func<T, object>> thenByDescendingExpression)
+    {
+        ThenByDescending = thenByDescendingExpression;
     }
 
     protected void ApplyPaging(int skip, int take)

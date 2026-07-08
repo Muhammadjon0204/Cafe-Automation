@@ -20,11 +20,11 @@ public static class SpecificationEvaluator<T> where T : class
 
         if (spec.OrderBy != null)
         {
-            query = query.OrderBy(spec.OrderBy);
+            query = ApplyThenBy(query.OrderBy(spec.OrderBy), spec);
         }
         else if (spec.OrderByDescending != null)
         {
-            query = query.OrderByDescending(spec.OrderByDescending);
+            query = ApplyThenBy(query.OrderByDescending(spec.OrderByDescending), spec);
         }
 
         if (spec.IsPagingEnabled)
@@ -46,5 +46,20 @@ public static class SpecificationEvaluator<T> where T : class
         var pageNumber = spec.IsPagingEnabled && pageSize > 0 ? (spec.Skip / pageSize) + 1 : 1;
 
         return PagedResult<T>.Create(items, pageNumber, pageSize, totalCount);
+    }
+
+    private static IQueryable<T> ApplyThenBy(IOrderedQueryable<T> ordered, ISpecification<T> spec)
+    {
+        if (spec.ThenBy != null)
+        {
+            return ordered.ThenBy(spec.ThenBy);
+        }
+
+        if (spec.ThenByDescending != null)
+        {
+            return ordered.ThenByDescending(spec.ThenByDescending);
+        }
+
+        return ordered;
     }
 }

@@ -15,6 +15,7 @@ public class StaffMemberFilterSpecification : BaseSpecification<StaffMember>
         AddInclude(x => x.Tips);
 
         ApplyOrderBy(x => x.LastName);
+        ApplyThenBy(x => x.FirstName);
 
         var pageNumber = PaginationHelper.NormalizePageNumber(filter.PageNumber);
         var pageSize = PaginationHelper.NormalizePageSize(filter.PageSize);

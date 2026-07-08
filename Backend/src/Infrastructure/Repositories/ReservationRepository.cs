@@ -48,22 +48,33 @@ public class ReservationRepository : IReservationRepository
         return _context.Reservations.AnyAsync(x => x.Id == id, cancellationToken);
     }
 
+    // Buffer between consecutive bookings on the same table, so a new reservation can't be
+    // scheduled back-to-back with an existing one (kitchen/turnover time). Kept as a repository-
+    // level constant rather than appsettings-driven config: nothing else in the codebase reads it,
+    // and there's no IOptions/config plumbing set up yet to justify introducing one for a single
+    // value. Revisit if this ever needs to be configurable per cafe/table.
+    private const int BufferMinutes = 15;
+
     // NOTE: no conflict-detection contract existed anywhere before this file (interface method
     // had zero implementations). Overlap rule authored here: a missing ReservedUntil is treated
     // as a zero-length booking at ReservedAt (start == end), and Cancelled/Completed reservations
-    // never block. Flagged in the session report for review — this is new business logic, not a
-    // port of existing behavior.
+    // never block. The requested interval is expanded by BufferMinutes on both ends before being
+    // checked against existing (unexpanded) reservation intervals, which is equivalent to requiring
+    // at least a BufferMinutes gap between any two bookings on the same table. Flagged in the
+    // session report for review — this is new business logic, not a port of existing behavior.
     public Task<bool> HasConflictAsync(int tableId, DateTime reservedAt, DateTime? reservedUntil, int? excludeId = null, CancellationToken cancellationToken = default)
     {
         var requestedEnd = reservedUntil ?? reservedAt;
+        var bufferedStart = reservedAt.AddMinutes(-BufferMinutes);
+        var bufferedEnd = requestedEnd.AddMinutes(BufferMinutes);
 
         return _context.Reservations.AnyAsync(x =>
             x.CafeTableId == tableId &&
             x.Status != ReservationStatus.Cancelled &&
             x.Status != ReservationStatus.Completed &&
             (!excludeId.HasValue || x.Id != excludeId.Value) &&
-            x.ReservedAt < requestedEnd &&
-            (x.ReservedUntil ?? x.ReservedAt) > reservedAt,
+            x.ReservedAt < bufferedEnd &&
+            (x.ReservedUntil ?? x.ReservedAt) > bufferedStart,
             cancellationToken);
     }
 }

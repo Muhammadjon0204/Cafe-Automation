@@ -14,6 +14,10 @@ public interface ISpecification<T>
 
     Expression<Func<T, object>>? OrderByDescending { get; }
 
+    Expression<Func<T, object>>? ThenBy { get; }
+
+    Expression<Func<T, object>>? ThenByDescending { get; }
+
     int Skip { get; }
 
     int Take { get; }
