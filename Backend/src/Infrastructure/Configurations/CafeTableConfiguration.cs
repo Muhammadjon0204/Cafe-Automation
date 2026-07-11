@@ -20,6 +20,7 @@ public class CafeTableConfiguration : IEntityTypeConfiguration<CafeTable>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Ignore(x => x.RowVersion);
 
         builder.HasMany(x => x.Orders)
             .WithOne(x => x.CafeTable)

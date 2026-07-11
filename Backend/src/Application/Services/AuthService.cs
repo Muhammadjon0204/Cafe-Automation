@@ -1,7 +1,11 @@
+using Cafe.Application.Common;
 using Cafe.Application.DTOs.Auth;
 using Cafe.Application.Interfaces.Identity;
+using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
+using Cafe.Domain.Entities;
+using Microsoft.Extensions.Options;
 
 namespace Cafe.Application.Services;
 
@@ -9,11 +13,22 @@ public class AuthService : IAuthService
 {
     private readonly IIdentityService _identityService;
     private readonly ITokenService _tokenService;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly JwtSettings _jwtSettings;
 
-    public AuthService(IIdentityService identityService, ITokenService tokenService)
+    public AuthService(
+        IIdentityService identityService,
+        ITokenService tokenService,
+        IRefreshTokenRepository refreshTokenRepository,
+        IUnitOfWork unitOfWork,
+        IOptions<JwtSettings> jwtOptions)
     {
         _identityService = identityService;
         _tokenService = tokenService;
+        _refreshTokenRepository = refreshTokenRepository;
+        _unitOfWork = unitOfWork;
+        _jwtSettings = jwtOptions.Value;
     }
 
     public async Task<Result<AuthResponseDto>> LoginAsync(LoginDto dto, CancellationToken cancellationToken = default)
@@ -80,6 +95,55 @@ public class AuthService : IAuthService
         return await CreateAuthResponseAsync(registerResult.Data, cancellationToken);
     }
 
+    public async Task<Result<AuthResponseDto>> RefreshTokenAsync(RefreshTokenDto dto, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.RefreshToken))
+        {
+            return Result<AuthResponseDto>.Failure("Refresh token is required.");
+        }
+
+        var existing = await _refreshTokenRepository.GetByTokenAsync(dto.RefreshToken.Trim(), cancellationToken);
+        if (existing == null || existing.IsRevoked || existing.ExpiresAt <= DateTime.UtcNow)
+        {
+            return Result<AuthResponseDto>.Failure("Refresh token is invalid or expired.");
+        }
+
+        if (existing.StaffMember == null || existing.StaffMember.IdentityUserId == null)
+        {
+            return Result<AuthResponseDto>.Failure("Refresh token is invalid or expired.");
+        }
+
+        var userInfoResult = await _identityService.GetUserInfoAsync(existing.StaffMember.IdentityUserId, cancellationToken);
+        if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
+        {
+            return Result<AuthResponseDto>.Failure(userInfoResult.Message, userInfoResult.Errors);
+        }
+
+        existing.IsRevoked = true;
+        _refreshTokenRepository.Update(existing);
+
+        return await CreateAuthResponseAsync(userInfoResult.Data, cancellationToken);
+    }
+
+    public async Task<Result> LogoutAsync(RefreshTokenDto dto, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.RefreshToken))
+        {
+            return Result.Failure("Refresh token is required.");
+        }
+
+        var existing = await _refreshTokenRepository.GetByTokenAsync(dto.RefreshToken.Trim(), cancellationToken);
+        if (existing == null)
+        {
+            return Result.Success("Logged out.");
+        }
+
+        existing.IsRevoked = true;
+        _refreshTokenRepository.Update(existing);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success("Logged out.");
+    }
+
     public async Task<Result> ChangePasswordAsync(string userId, ChangePasswordDto dto, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(userId))
@@ -133,14 +197,34 @@ public class AuthService : IAuthService
             user.UserId,
             user.Email,
             user.FullName,
+            user.StaffMemberId,
             roles,
             cancellationToken);
+
+        var refreshTokenValue = _tokenService.GenerateRefreshToken();
+        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenMinutes);
+
+        if (user.StaffMemberId.HasValue)
+        {
+            var refreshToken = new RefreshToken
+            {
+                Token = refreshTokenValue,
+                StaffMemberId = user.StaffMemberId.Value,
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays),
+                IsRevoked = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var response = new AuthResponseDto
         {
             AccessToken = accessToken,
-            RefreshToken = _tokenService.GenerateRefreshToken(),
-            ExpiresAt = DateTime.UtcNow.AddHours(1),
+            RefreshToken = refreshTokenValue,
+            ExpiresAt = expiresAt,
             User = user,
             Roles = roles.ToList()
         };

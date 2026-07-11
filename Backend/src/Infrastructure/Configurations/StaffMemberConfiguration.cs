@@ -27,6 +27,7 @@ public class StaffMemberConfiguration : IEntityTypeConfiguration<StaffMember>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Ignore(x => x.RowVersion);
 
         builder.HasIndex(x => x.IdentityUserId);
         builder.HasIndex(x => x.Email)

@@ -22,6 +22,7 @@ public class DiscountConfiguration : IEntityTypeConfiguration<Discount>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Ignore(x => x.RowVersion);
 
         builder.HasOne(x => x.Order)
             .WithMany(x => x.Discounts)

@@ -28,6 +28,7 @@ public class DishConfiguration : IEntityTypeConfiguration<Dish>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Ignore(x => x.RowVersion);
 
         builder.HasOne(x => x.Category)
             .WithMany(x => x.Dishes)

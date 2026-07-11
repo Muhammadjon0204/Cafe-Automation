@@ -23,6 +23,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Property(x => x.RowVersion).IsRowVersion();
 
         builder.HasOne(x => x.Order)
             .WithMany(x => x.Payments)

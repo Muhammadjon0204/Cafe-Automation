@@ -28,8 +28,6 @@ public class GetStaffMemberDto
 
     public DateTime? FiredDate { get; set; }
 
-    public decimal? Salary { get; set; }
-
     public string? Note { get; set; }
 
     public int OrdersCount { get; set; }

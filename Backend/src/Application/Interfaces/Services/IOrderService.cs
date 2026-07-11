@@ -15,7 +15,7 @@ public interface IOrderService
 
     Task<Result<GetOrderDto>> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemDto dto, CancellationToken cancellationToken = default);
 
-    Task<Result<GetOrderDto>> RemoveItemAsync(int orderId, int itemId, CancellationToken cancellationToken = default);
+    Task<Result<GetOrderDto>> RemoveItemAsync(int orderId, int itemId, RemoveOrderItemDto dto, CancellationToken cancellationToken = default);
 
     Task<Result<GetOrderDto>> UpdateStatusAsync(int orderId, UpdateOrderStatusDto dto, CancellationToken cancellationToken = default);
 

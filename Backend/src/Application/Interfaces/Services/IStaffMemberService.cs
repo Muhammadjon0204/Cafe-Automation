@@ -9,6 +9,10 @@ public interface IStaffMemberService
 
     Task<Result<GetStaffMemberDto>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
+    Task<Result<PagedResult<GetStaffMemberAdminDto>>> GetAllAdminAsync(StaffMemberFilterDto filter, CancellationToken cancellationToken = default);
+
+    Task<Result<GetStaffMemberAdminDto>> GetByIdAdminAsync(int id, CancellationToken cancellationToken = default);
+
     Task<Result<GetStaffMemberDto>> CreateAsync(CreateStaffMemberDto dto, CancellationToken cancellationToken = default);
 
     Task<Result<GetStaffMemberDto>> UpdateAsync(int id, UpdateStaffMemberDto dto, CancellationToken cancellationToken = default);

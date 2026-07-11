@@ -25,6 +25,7 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Ignore(x => x.RowVersion);
 
         builder.HasOne(x => x.CafeTable)
             .WithMany(x => x.Reservations)

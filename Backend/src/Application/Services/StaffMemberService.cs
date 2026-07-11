@@ -1,9 +1,11 @@
 using Cafe.Application.Common;
 using Cafe.Application.DTOs.Staff;
+using Cafe.Application.Interfaces.Identity;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
 using Cafe.Application.Services.Staff.Specifications;
+using Cafe.Domain.Constants;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -13,11 +15,19 @@ public class StaffMemberService : IStaffMemberService
 {
     private readonly IStaffMemberRepository _staffRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-    public StaffMemberService(IStaffMemberRepository staffRepository, IUnitOfWork unitOfWork)
+    public StaffMemberService(
+        IStaffMemberRepository staffRepository,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService,
+        IRefreshTokenRepository refreshTokenRepository)
     {
         _staffRepository = staffRepository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
+        _refreshTokenRepository = refreshTokenRepository;
     }
 
     public async Task<Result<PagedResult<GetStaffMemberDto>>> GetAllAsync(StaffMemberFilterDto filter, CancellationToken cancellationToken = default)
@@ -37,6 +47,35 @@ public class StaffMemberService : IStaffMemberService
         }
 
         return Result<GetStaffMemberDto>.Success(MapToDto(staff));
+    }
+
+    public async Task<Result<PagedResult<GetStaffMemberAdminDto>>> GetAllAdminAsync(StaffMemberFilterDto filter, CancellationToken cancellationToken = default)
+    {
+        if (!_currentUserService.IsInRole(SystemRoles.Admin))
+        {
+            return Result<PagedResult<GetStaffMemberAdminDto>>.Failure("Forbidden.");
+        }
+
+        var spec = new StaffMemberFilterSpecification(filter);
+        var pagedStaff = await _staffRepository.GetAsync(spec, cancellationToken);
+        var result = pagedStaff.MapTo(MapToAdminDto);
+        return Result<PagedResult<GetStaffMemberAdminDto>>.Success(result);
+    }
+
+    public async Task<Result<GetStaffMemberAdminDto>> GetByIdAdminAsync(int id, CancellationToken cancellationToken = default)
+    {
+        if (!_currentUserService.IsInRole(SystemRoles.Admin))
+        {
+            return Result<GetStaffMemberAdminDto>.Failure("Forbidden.");
+        }
+
+        var staff = await _staffRepository.GetByIdAsync(id, cancellationToken);
+        if (staff == null || staff.IsDeleted)
+        {
+            return Result<GetStaffMemberAdminDto>.Failure("Staff member not found.");
+        }
+
+        return Result<GetStaffMemberAdminDto>.Success(MapToAdminDto(staff));
     }
 
     public async Task<Result<GetStaffMemberDto>> CreateAsync(CreateStaffMemberDto dto, CancellationToken cancellationToken = default)
@@ -82,6 +121,11 @@ public class StaffMemberService : IStaffMemberService
             return Result<GetStaffMemberDto>.Failure(validation.Message, validation.Errors);
         }
 
+        // A role or status change invalidates any access/refresh tokens already issued for the
+        // old role — otherwise a demoted/fired staff member keeps acting under stale claims
+        // until the short-lived access token happens to expire.
+        var roleOrStatusChanged = staff.Role != dto.Role || staff.Status != dto.Status;
+
         staff.FirstName = dto.FirstName.Trim();
         staff.LastName = dto.LastName.Trim();
         staff.MiddleName = ServiceHelpers.TrimToNull(dto.MiddleName);
@@ -96,6 +140,12 @@ public class StaffMemberService : IStaffMemberService
         staff.UpdatedAt = DateTime.UtcNow;
 
         _staffRepository.Update(staff);
+
+        if (roleOrStatusChanged)
+        {
+            await _refreshTokenRepository.RevokeAllForStaffMemberAsync(staff.Id, cancellationToken);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result<GetStaffMemberDto>.Success(MapToDto(staff), "Staff member updated.");
     }
@@ -113,6 +163,8 @@ public class StaffMemberService : IStaffMemberService
             return Result.Failure("Invalid staff status.");
         }
 
+        var statusChanged = staff.Status != dto.Status;
+
         staff.Status = dto.Status;
         staff.FiredDate = dto.Status == StaffStatus.Fired ? dto.FiredDate ?? DateTime.UtcNow : dto.FiredDate;
         if (!string.IsNullOrWhiteSpace(dto.Note))
@@ -123,6 +175,12 @@ public class StaffMemberService : IStaffMemberService
         staff.UpdatedAt = DateTime.UtcNow;
 
         _staffRepository.Update(staff);
+
+        if (statusChanged)
+        {
+            await _refreshTokenRepository.RevokeAllForStaffMemberAsync(staff.Id, cancellationToken);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success("Staff status updated.");
     }
@@ -141,6 +199,7 @@ public class StaffMemberService : IStaffMemberService
         staff.UpdatedAt = DateTime.UtcNow;
 
         _staffRepository.Update(staff);
+        await _refreshTokenRepository.RevokeAllForStaffMemberAsync(staff.Id, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Success("Staff member deleted.");
     }
@@ -167,6 +226,30 @@ public class StaffMemberService : IStaffMemberService
     private static GetStaffMemberDto MapToDto(StaffMember staff)
     {
         return new GetStaffMemberDto
+        {
+            Id = staff.Id,
+            IdentityUserId = staff.IdentityUserId,
+            FirstName = staff.FirstName,
+            LastName = staff.LastName,
+            MiddleName = staff.MiddleName,
+            FullName = ServiceHelpers.BuildStaffName(staff),
+            Phone = staff.Phone,
+            Email = staff.Email,
+            Role = staff.Role,
+            Status = staff.Status,
+            HireDate = staff.HireDate,
+            FiredDate = staff.FiredDate,
+            Note = staff.Note,
+            OrdersCount = staff.Orders?.Count(x => !x.IsDeleted) ?? 0,
+            TotalTips = staff.Tips?.Where(x => !x.IsDeleted).Sum(x => x.Amount) ?? 0,
+            CreatedAt = staff.CreatedAt,
+            UpdatedAt = staff.UpdatedAt
+        };
+    }
+
+    private static GetStaffMemberAdminDto MapToAdminDto(StaffMember staff)
+    {
+        return new GetStaffMemberAdminDto
         {
             Id = staff.Id,
             IdentityUserId = staff.IdentityUserId,

@@ -1,10 +1,12 @@
 using Cafe.Domain.Common;
 using Cafe.Domain.Entities;
+using Cafe.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cafe.Infrastructure.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
@@ -32,6 +34,8 @@ public class AppDbContext : DbContext
     public DbSet<Tip> Tips => Set<Tip>();
 
     public DbSet<Reservation> Reservations => Set<Reservation>();
+
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

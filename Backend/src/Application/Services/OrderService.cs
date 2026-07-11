@@ -1,9 +1,11 @@
 using Cafe.Application.Common;
 using Cafe.Application.DTOs.Orders;
+using Cafe.Application.Interfaces.Identity;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
 using Cafe.Application.Services.Orders.Specifications;
+using Cafe.Domain.Constants;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -21,6 +23,7 @@ public class OrderService : IOrderService
     private readonly IDiscountRepository _discountRepository;
     private readonly ITipRepository _tipRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
     public OrderService(
         IOrderRepository orderRepository,
@@ -32,7 +35,8 @@ public class OrderService : IOrderService
         IPaymentRepository paymentRepository,
         IDiscountRepository discountRepository,
         ITipRepository tipRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService)
     {
         _orderRepository = orderRepository;
         _orderItemRepository = orderItemRepository;
@@ -44,10 +48,21 @@ public class OrderService : IOrderService
         _discountRepository = discountRepository;
         _tipRepository = tipRepository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Result<PagedResult<GetOrderDto>>> GetAllAsync(OrderFilterDto filter, CancellationToken cancellationToken = default)
     {
+        // Row-level scoping: a Waiter can only ever see their own orders, regardless of what
+        // WaiterId the caller put in the filter DTO (a client could otherwise spoof another
+        // waiter's id to read their orders). Admin/Manager/other roles use the DTO filter as-is.
+        // A Waiter-role token with no linked StaffMemberId is scoped to a filter that matches
+        // nothing (-1) rather than falling back to "unfiltered" (deny-by-default).
+        if (_currentUserService.IsInRole(SystemRoles.Waiter))
+        {
+            filter.WaiterId = _currentUserService.StaffMemberId ?? -1;
+        }
+
         var spec = new OrderFilterSpecification(filter);
         var pagedOrders = await _orderRepository.GetAsync(spec, cancellationToken);
         var result = pagedOrders.MapTo(MapToDto);
@@ -188,6 +203,12 @@ public class OrderService : IOrderService
             return Result<GetOrderDto>.Failure("Order item not found.");
         }
 
+        var guardFailure = ValidateForceGuard(item, dto.Force, dto.Reason);
+        if (guardFailure != null)
+        {
+            return guardFailure;
+        }
+
         item.Quantity = dto.Quantity;
         item.TotalPrice = item.UnitPrice * dto.Quantity;
         item.Note = ServiceHelpers.TrimToNull(dto.Note);
@@ -210,7 +231,7 @@ public class OrderService : IOrderService
         return Result<GetOrderDto>.Success(MapToDto(order), "Order item updated.");
     }
 
-    public async Task<Result<GetOrderDto>> RemoveItemAsync(int orderId, int itemId, CancellationToken cancellationToken = default)
+    public async Task<Result<GetOrderDto>> RemoveItemAsync(int orderId, int itemId, RemoveOrderItemDto dto, CancellationToken cancellationToken = default)
     {
         var order = await GetOrderWithDetailsAsync(orderId, cancellationToken);
         if (order == null || order.IsDeleted)
@@ -227,6 +248,12 @@ public class OrderService : IOrderService
         if (item == null || item.IsDeleted || item.OrderId != orderId)
         {
             return Result<GetOrderDto>.Failure("Order item not found.");
+        }
+
+        var guardFailure = ValidateForceGuard(item, dto.Force, dto.Reason);
+        if (guardFailure != null)
+        {
+            return guardFailure;
         }
 
         item.IsDeleted = true;
@@ -260,6 +287,14 @@ public class OrderService : IOrderService
         if (!Enum.IsDefined(typeof(OrderStatus), dto.Status))
         {
             return Result<GetOrderDto>.Failure("Invalid order status.");
+        }
+
+        // Kitchen only runs the cooking pipeline (Accepted/Cooking/Ready) and never touches
+        // Served/Closed/Cancelled, which involve waiter/cashier handoff or payment. A user who
+        // also holds Admin/Manager/Waiter keeps the unrestricted transitions.
+        if (IsKitchenOnly() && dto.Status != OrderStatus.Accepted && dto.Status != OrderStatus.Cooking && dto.Status != OrderStatus.Ready)
+        {
+            return Result<GetOrderDto>.Failure("Kitchen role can only move an order through Accepted, Cooking, or Ready.");
         }
 
         if (dto.Status == OrderStatus.Closed || dto.Status == OrderStatus.Cancelled)
@@ -480,6 +515,39 @@ public class OrderService : IOrderService
         table.UpdatedAt = DateTime.UtcNow;
         _tableRepository.Update(table);
         order.CafeTable = table;
+    }
+
+    // Once the kitchen has started (or finished) preparing an item, silently editing the
+    // quantity or deleting it would desync what's on the pass from what the guest is billed
+    // for. Force+Reason is an explicit, auditable override for corrections (wrong item fired,
+    // guest changed their mind after cooking started, etc.).
+    private static Result<GetOrderDto>? ValidateForceGuard(OrderItem item, bool force, string? reason)
+    {
+        var isProtected = item.Status == OrderItemStatus.Cooking || item.Status == OrderItemStatus.Served;
+        if (!isProtected)
+        {
+            return null;
+        }
+
+        if (!force)
+        {
+            return Result<GetOrderDto>.Failure($"Item is already {item.Status}; pass force=true with a reason to override.");
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Result<GetOrderDto>.Failure("A reason is required to force-change an item that is already Cooking or Served.");
+        }
+
+        return null;
+    }
+
+    private bool IsKitchenOnly()
+    {
+        return _currentUserService.IsInRole(SystemRoles.Kitchen) &&
+            !_currentUserService.IsInRole(SystemRoles.Admin) &&
+            !_currentUserService.IsInRole(SystemRoles.Manager) &&
+            !_currentUserService.IsInRole(SystemRoles.Waiter);
     }
 
     private static bool IsClosedOrCancelled(Order order)

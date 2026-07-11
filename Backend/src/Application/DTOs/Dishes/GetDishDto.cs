@@ -12,8 +12,6 @@ public class GetDishDto
 
     public decimal Price { get; set; }
 
-    public decimal? CostPrice { get; set; }
-
     public int CookingTimeMinutes { get; set; }
 
     public int? Calories { get; set; }

@@ -1,9 +1,11 @@
 using Cafe.Application.Common;
 using Cafe.Application.DTOs.Dishes;
+using Cafe.Application.Interfaces.Identity;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
 using Cafe.Application.Services.Dishes.Specifications;
+using Cafe.Domain.Constants;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -14,12 +16,14 @@ public class DishService : IDishService
     private readonly IDishRepository _dishRepository;
     private readonly ICategoryRepository _categoryRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
-    public DishService(IDishRepository dishRepository, ICategoryRepository categoryRepository, IUnitOfWork unitOfWork)
+    public DishService(IDishRepository dishRepository, ICategoryRepository categoryRepository, IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
     {
         _dishRepository = dishRepository;
         _categoryRepository = categoryRepository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Result<PagedResult<GetDishDto>>> GetAllAsync(DishFilterDto filter, CancellationToken cancellationToken = default)
@@ -40,6 +44,36 @@ public class DishService : IDishService
         }
 
         return Result<GetDishDto>.Success(MapToDto(dish));
+    }
+
+    public async Task<Result<PagedResult<GetDishAdminDto>>> GetAllAdminAsync(DishFilterDto filter, CancellationToken cancellationToken = default)
+    {
+        if (!_currentUserService.IsInRole(SystemRoles.Admin))
+        {
+            return Result<PagedResult<GetDishAdminDto>>.Failure("Forbidden.");
+        }
+
+        var spec = new DishFilterSpecification(filter);
+        var pagedDishes = await _dishRepository.GetAsync(spec, cancellationToken);
+        var result = pagedDishes.MapTo(MapToAdminDto);
+        return Result<PagedResult<GetDishAdminDto>>.Success(result);
+    }
+
+    public async Task<Result<GetDishAdminDto>> GetByIdAdminAsync(int id, CancellationToken cancellationToken = default)
+    {
+        if (!_currentUserService.IsInRole(SystemRoles.Admin))
+        {
+            return Result<GetDishAdminDto>.Failure("Forbidden.");
+        }
+
+        var dish = await _dishRepository.GetByIdWithCategoryAsync(id, cancellationToken)
+            ?? await _dishRepository.GetByIdAsync(id, cancellationToken);
+        if (dish == null || dish.IsDeleted)
+        {
+            return Result<GetDishAdminDto>.Failure("Dish not found.");
+        }
+
+        return Result<GetDishAdminDto>.Success(MapToAdminDto(dish));
     }
 
     public async Task<Result<GetDishDto>> CreateAsync(CreateDishDto dto, CancellationToken cancellationToken = default)
@@ -172,6 +206,29 @@ public class DishService : IDishService
     private static GetDishDto MapToDto(Dish dish)
     {
         return new GetDishDto
+        {
+            Id = dish.Id,
+            Name = dish.Name,
+            Description = dish.Description,
+            Price = dish.Price,
+            CookingTimeMinutes = dish.CookingTimeMinutes,
+            Calories = dish.Calories,
+            ImageUrl = dish.ImageUrl,
+            IngredientsDescription = dish.IngredientsDescription,
+            IsAvailable = dish.IsAvailable,
+            IsSeasonal = dish.IsSeasonal,
+            Status = dish.Status,
+            Type = dish.Type,
+            CategoryId = dish.CategoryId,
+            CategoryName = dish.Category?.Name ?? string.Empty,
+            CreatedAt = dish.CreatedAt,
+            UpdatedAt = dish.UpdatedAt
+        };
+    }
+
+    private static GetDishAdminDto MapToAdminDto(Dish dish)
+    {
+        return new GetDishAdminDto
         {
             Id = dish.Id,
             Name = dish.Name,
