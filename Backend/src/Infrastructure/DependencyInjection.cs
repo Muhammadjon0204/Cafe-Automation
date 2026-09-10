@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IZoneRepository, ZoneRepository>();
 
         services.AddSingleton<ICacheService, InMemoryCacheService>();
 

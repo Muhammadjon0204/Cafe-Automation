@@ -37,6 +37,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<Zone> Zones => Set<Zone>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -47,12 +49,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ApplyAuditInfo();
+        ApplyRowVersions();
         return base.SaveChangesAsync(cancellationToken);
     }
 
     public override int SaveChanges()
     {
         ApplyAuditInfo();
+        ApplyRowVersions();
         return base.SaveChanges();
     }
 
@@ -73,6 +77,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             {
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
             }
+        }
+    }
+
+    // Order/OrderItem/Payment map RowVersion as a real concurrency token with
+    // ValueGeneratedNever (see OrderConfiguration) — Npgsql has no native auto-generating
+    // rowversion type, so the app must supply a fresh value on every write itself. Entities
+    // that .Ignore(x => x.RowVersion) in their configuration are unaffected by this.
+    private void ApplyRowVersions()
+    {
+        var entries = ChangeTracker
+            .Entries<BaseEntity>()
+            .Where(x => x.State == EntityState.Added || x.State == EntityState.Modified);
+
+        foreach (var entry in entries)
+        {
+            entry.Entity.RowVersion = Guid.NewGuid().ToByteArray();
         }
     }
 }

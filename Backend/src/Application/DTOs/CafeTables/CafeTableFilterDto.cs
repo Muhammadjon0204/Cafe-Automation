@@ -1,4 +1,4 @@
-﻿using Cafe.Domain.Enums;
+using Cafe.Domain.Enums;
 
 namespace Cafe.Application.DTOs.CafeTables;
 
@@ -13,6 +13,8 @@ public class CafeTableFilterDto
     public int? MaxSeatsCount { get; set; }
 
     public string? Location { get; set; }
+
+    public int? ZoneId { get; set; }
 
     public int PageNumber { get; set; } = 1;
 

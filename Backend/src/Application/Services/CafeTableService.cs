@@ -11,11 +11,13 @@ namespace Cafe.Application.Services;
 public class CafeTableService : ICafeTableService
 {
     private readonly ICafeTableRepository _tableRepository;
+    private readonly IZoneRepository _zoneRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CafeTableService(ICafeTableRepository tableRepository, IUnitOfWork unitOfWork)
+    public CafeTableService(ICafeTableRepository tableRepository, IZoneRepository zoneRepository, IUnitOfWork unitOfWork)
     {
         _tableRepository = tableRepository;
+        _zoneRepository = zoneRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -28,6 +30,7 @@ public class CafeTableService : ICafeTableService
         if (filter.Status.HasValue) query = query.Where(x => x.Status == filter.Status.Value);
         if (filter.MinSeatsCount.HasValue) query = query.Where(x => x.SeatsCount >= filter.MinSeatsCount.Value);
         if (filter.MaxSeatsCount.HasValue) query = query.Where(x => x.SeatsCount <= filter.MaxSeatsCount.Value);
+        if (filter.ZoneId.HasValue) query = query.Where(x => x.ZoneId == filter.ZoneId.Value);
         if (!string.IsNullOrWhiteSpace(filter.Location))
         {
             var location = filter.Location.Trim();
@@ -57,6 +60,26 @@ public class CafeTableService : ICafeTableService
             return Result<GetCafeTableDto>.Failure(validation.Message, validation.Errors);
         }
 
+        if (dto.Width is <= 0 or > 400 || dto.Height is <= 0 or > 400)
+        {
+            return Result<GetCafeTableDto>.Failure("Width and height must be between 1 and 400.");
+        }
+
+        if (dto.Shape.HasValue && !Enum.IsDefined(typeof(TableShape), dto.Shape.Value))
+        {
+            return Result<GetCafeTableDto>.Failure("Invalid table shape.");
+        }
+
+        Zone? zone = null;
+        if (dto.ZoneId.HasValue)
+        {
+            zone = await _zoneRepository.GetByIdAsync(dto.ZoneId.Value, cancellationToken);
+            if (zone == null || zone.IsDeleted)
+            {
+                return Result<GetCafeTableDto>.Failure("Zone not found.");
+            }
+        }
+
         var table = new CafeTable
         {
             TableNumber = dto.TableNumber,
@@ -64,6 +87,13 @@ public class CafeTableService : ICafeTableService
             Status = TableStatus.Free,
             Location = ServiceHelpers.TrimToNull(dto.Location),
             Note = ServiceHelpers.TrimToNull(dto.Note),
+            PositionX = dto.PositionX ?? 40,
+            PositionY = dto.PositionY ?? 40,
+            Width = dto.Width ?? 80,
+            Height = dto.Height ?? 80,
+            Shape = dto.Shape ?? TableShape.Rectangle,
+            ZoneId = dto.ZoneId,
+            Zone = zone,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -101,6 +131,48 @@ public class CafeTableService : ICafeTableService
         _tableRepository.Update(table);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result<GetCafeTableDto>.Success(MapToDto(table), "Table updated.");
+    }
+
+    public async Task<Result<GetCafeTableDto>> UpdateLayoutAsync(int id, UpdateCafeTableLayoutDto dto, CancellationToken cancellationToken = default)
+    {
+        var table = await _tableRepository.GetByIdAsync(id, cancellationToken);
+        if (table == null || table.IsDeleted)
+        {
+            return Result<GetCafeTableDto>.Failure("Table not found.");
+        }
+
+        if (dto.Width <= 0 || dto.Width > 400 || dto.Height <= 0 || dto.Height > 400)
+        {
+            return Result<GetCafeTableDto>.Failure("Width and height must be between 1 and 400.");
+        }
+
+        if (!Enum.IsDefined(typeof(TableShape), dto.Shape))
+        {
+            return Result<GetCafeTableDto>.Failure("Invalid table shape.");
+        }
+
+        Zone? zone = null;
+        if (dto.ZoneId.HasValue)
+        {
+            zone = await _zoneRepository.GetByIdAsync(dto.ZoneId.Value, cancellationToken);
+            if (zone == null || zone.IsDeleted)
+            {
+                return Result<GetCafeTableDto>.Failure("Zone not found.");
+            }
+        }
+
+        table.PositionX = dto.PositionX;
+        table.PositionY = dto.PositionY;
+        table.Width = dto.Width;
+        table.Height = dto.Height;
+        table.Shape = dto.Shape;
+        table.ZoneId = dto.ZoneId;
+        table.Zone = zone;
+        table.UpdatedAt = DateTime.UtcNow;
+
+        _tableRepository.Update(table);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result<GetCafeTableDto>.Success(MapToDto(table), "Table layout updated.");
     }
 
     public async Task<Result> UpdateStatusAsync(int id, UpdateCafeTableStatusDto dto, CancellationToken cancellationToken = default)
@@ -160,6 +232,13 @@ public class CafeTableService : ICafeTableService
             Status = table.Status,
             Location = table.Location,
             Note = table.Note,
+            PositionX = table.PositionX,
+            PositionY = table.PositionY,
+            Width = table.Width,
+            Height = table.Height,
+            Shape = table.Shape,
+            ZoneId = table.ZoneId,
+            ZoneName = table.Zone?.Name,
             CreatedAt = table.CreatedAt,
             UpdatedAt = table.UpdatedAt
         };

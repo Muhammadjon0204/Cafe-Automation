@@ -1,25 +1,64 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { CATEGORIES, DISHES, TRANSLATIONS } from './data';
-import type { Accent, CategoryId, Lang } from './types';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
+import { TRANSLATIONS } from './data';
+import type { Lang } from './types';
 import { ArrowIcon, MenuIcon, MoonIcon, SunIcon } from './icons';
+import { useThemeTransition, ApiError } from '@cafe/shared';
+import {
+  getBookableTables,
+  getMenuCategories,
+  getMenuDishes,
+  submitReservation,
+  type ApiCafeTable,
+  type ApiCategory,
+  type ApiDish,
+} from './api';
 import './AmbreLanding.css';
+
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+
+function defaultReservationDateTime(): string {
+  const inTwoHours = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  inTwoHours.setMinutes(0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${inTwoHours.getFullYear()}-${pad(inTwoHours.getMonth() + 1)}-${pad(inTwoHours.getDate())}T${pad(inTwoHours.getHours())}:00`;
+}
 
 const CoffeeCup3D = lazy(() => import('./CoffeeCup3D').then((m) => ({ default: m.CoffeeCup3D })));
 
 const MOBILE_BREAKPOINT = 820;
 
 interface AmbreLandingProps {
-  accent?: Accent;
   show3d?: boolean;
 }
 
-export function AmbreLanding({ accent = 'terracotta', show3d = true }: AmbreLandingProps) {
-  const [isDark, setIsDark] = useState(false);
+export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
+  const { isDark, isAnimating, toggleTheme } = useThemeTransition();
   const [lang, setLang] = useState<Lang>('ru');
-  const [activeCat, setActiveCat] = useState<CategoryId>('coffee');
+  const [activeCat, setActiveCat] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [threeActive, setThreeActive] = useState(false);
+
+  // Menu data comes from the real backend (GET /api/categories, GET /api/dishes) — the
+  // hardcoded RU/EN pairs in data.ts only cover the surrounding page chrome now. The
+  // backend is Russian-only, so dish/category names don't change with the lang toggle.
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [allDishes, setAllDishes] = useState<ApiDish[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState<string | null>(null);
+  const [menuReloadToken, setMenuReloadToken] = useState(0);
+
+  const [tables, setTables] = useState<ApiCafeTable[]>([]);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+  const [reservationName, setReservationName] = useState('');
+  const [reservationPhone, setReservationPhone] = useState('');
+  const [reservationGuests, setReservationGuests] = useState(2);
+  const [reservationTableId, setReservationTableId] = useState<number | null>(null);
+  const [reservationWhen, setReservationWhen] = useState(defaultReservationDateTime);
+  const [reservationNote, setReservationNote] = useState('');
+  const [reservationSubmitting, setReservationSubmitting] = useState(false);
+  const [reservationError, setReservationError] = useState<string | null>(null);
+  const [reservationDone, setReservationDone] = useState(false);
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
@@ -32,20 +71,94 @@ export function AmbreLanding({ accent = 'terracotta', show3d = true }: AmbreLand
     if (!isMobile) setMenuOpen(false);
   }, [isMobile]);
 
+  // Mirrors admin-app's AppShell: shared tokens.css scopes its dark palette to
+  // :root.theme-dark, so the flag needs to land on documentElement (not just the
+  // local .app wrapper) for --color-accent/--shadow-* to resolve correctly here.
+  useEffect(() => {
+    document.documentElement.classList.toggle('theme-dark', isDark);
+  }, [isDark]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMenuLoading(true);
+    setMenuError(null);
+    Promise.all([getMenuCategories(), getMenuDishes()])
+      .then(([fetchedCategories, fetchedDishes]) => {
+        if (cancelled) return;
+        setCategories(fetchedCategories);
+        setAllDishes(fetchedDishes);
+        setActiveCat((current) => current ?? fetchedCategories[0]?.id ?? null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setMenuError(error instanceof ApiError ? error.message : 'Не удалось загрузить меню.');
+      })
+      .finally(() => {
+        if (!cancelled) setMenuLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [menuReloadToken]);
+
+  useEffect(() => {
+    getBookableTables()
+      .then(setTables)
+      .catch((error: unknown) => setTablesError(error instanceof ApiError ? error.message : 'Не удалось загрузить столы.'));
+  }, []);
+
   const t = TRANSLATIONS[lang];
 
-  const dishes = useMemo(
-    () =>
-      DISHES.filter((dish) => dish.cat === activeCat).map((dish) => ({
-        id: dish.id,
-        name: dish.name[lang],
-        desc: dish.desc[lang],
-        price: dish.price,
-      })),
-    [activeCat, lang],
+  const dishes = useMemo(() => allDishes.filter((dish) => dish.categoryId === activeCat), [allDishes, activeCat]);
+
+  const eligibleTables = useMemo(
+    () => tables.filter((table) => table.seatsCount >= reservationGuests),
+    [tables, reservationGuests],
   );
 
-  const rootClassName = ['app', `accent-${accent}`, isDark ? 'theme-dark' : ''].filter(Boolean).join(' ');
+  useEffect(() => {
+    if (!eligibleTables.some((table) => table.id === reservationTableId)) {
+      setReservationTableId(eligibleTables[0]?.id ?? null);
+    }
+  }, [eligibleTables, reservationTableId]);
+
+  const handleReservationSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!reservationTableId) {
+        setReservationError('Нет свободных столов на такое количество гостей.');
+        return;
+      }
+      if (new Date(reservationWhen).getTime() <= Date.now()) {
+        setReservationError('Выберите время в будущем.');
+        return;
+      }
+
+      setReservationSubmitting(true);
+      setReservationError(null);
+      submitReservation({
+        cafeTableId: reservationTableId,
+        customerName: reservationName,
+        phone: reservationPhone || undefined,
+        guestsCount: reservationGuests,
+        reservedAt: reservationWhen,
+        note: reservationNote || undefined,
+      })
+        .then(() => {
+          setReservationDone(true);
+          setReservationName('');
+          setReservationPhone('');
+          setReservationNote('');
+        })
+        .catch((error: unknown) => {
+          setReservationError(error instanceof ApiError ? error.message : 'Не удалось создать бронь.');
+        })
+        .finally(() => setReservationSubmitting(false));
+    },
+    [reservationTableId, reservationWhen, reservationName, reservationPhone, reservationGuests, reservationNote],
+  );
+
+  const rootClassName = ['app', isDark ? 'theme-dark' : ''].filter(Boolean).join(' ');
 
   const handleTilt = useCallback((e: MouseEvent<HTMLElement>) => {
     const el = e.currentTarget;
@@ -59,7 +172,7 @@ export function AmbreLanding({ accent = 'terracotta', show3d = true }: AmbreLand
   const resetTilt = useCallback((e: MouseEvent<HTMLElement>) => {
     const el = e.currentTarget;
     el.style.transform = 'perspective(920px) rotateX(0deg) rotateY(0deg) translateY(0)';
-    el.style.boxShadow = 'var(--shadow-md)';
+    el.style.boxShadow = 'var(--shadow-sm)';
   }, []);
 
   return (
@@ -93,7 +206,9 @@ export function AmbreLanding({ accent = 'terracotta', show3d = true }: AmbreLand
               type="button"
               className="icon-btn"
               aria-label="Toggle theme"
-              onClick={() => setIsDark((v) => !v)}
+              aria-busy={isAnimating}
+              disabled={isAnimating}
+              onClick={toggleTheme}
             >
               {isDark ? <SunIcon /> : <MoonIcon />}
             </button>
@@ -141,16 +256,18 @@ export function AmbreLanding({ accent = 'terracotta', show3d = true }: AmbreLand
         </div>
 
         <div className="hero-visual">
-          {!threeActive && (
-            <div className="orb">
-              <span>A</span>
-            </div>
-          )}
-          {show3d && !isMobile && (
-            <Suspense fallback={null}>
-              <CoffeeCup3D enabled={show3d} onActive={() => setThreeActive(true)} />
-            </Suspense>
-          )}
+          <div className="coffee-scene" aria-label="Animated 3D coffee cup">
+            {!threeActive && (
+              <div className="orb" aria-hidden="true">
+                <span>A</span>
+              </div>
+            )}
+            {show3d && !isMobile && (
+              <Suspense fallback={null}>
+                <CoffeeCup3D enabled={show3d} isDark={isDark} onActive={() => setThreeActive(true)} />
+              </Suspense>
+            )}
+          </div>
         </div>
       </section>
 
@@ -167,39 +284,146 @@ export function AmbreLanding({ accent = 'terracotta', show3d = true }: AmbreLand
             </a>
           </div>
 
-          <div className="cat-tabs">
-            {CATEGORIES.map((cat) => {
-              const active = cat.id === activeCat;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className={`cat-tab ${active ? 'is-active' : ''}`}
-                  onClick={() => setActiveCat(cat.id)}
-                >
-                  {cat.label[lang]}
-                  <span className="cat-tab-bar" style={{ transform: `scaleX(${active ? 1 : 0})` }} />
-                </button>
-              );
-            })}
-          </div>
+          {menuLoading ? (
+            <div className="dish-grid">
+              {[0, 1, 2].map((i) => (
+                <div className="dish-card skeleton-card" key={i} aria-hidden="true" />
+              ))}
+            </div>
+          ) : menuError ? (
+            <div className="section-error">
+              <span>{menuError}</span>
+              <button type="button" className="btn btn-outline" onClick={() => setMenuReloadToken((n) => n + 1)}>
+                Повторить
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="cat-tabs">
+                {categories.map((cat) => {
+                  const active = cat.id === activeCat;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      className={`cat-tab ${active ? 'is-active' : ''}`}
+                      onClick={() => setActiveCat(cat.id)}
+                    >
+                      {cat.name}
+                      <span className="cat-tab-bar" style={{ transform: `scaleX(${active ? 1 : 0})` }} />
+                    </button>
+                  );
+                })}
+              </div>
 
-          <div className="dish-grid">
-            {dishes.map((dish) => (
-              <article key={dish.id} className="dish-card" onMouseMove={handleTilt} onMouseLeave={resetTilt}>
-                <div className="dish-shot">
-                  <span>{t.shot}</span>
+              {dishes.length === 0 ? (
+                <p className="dish-empty">В этой категории пока нет блюд.</p>
+              ) : (
+                <div className="dish-grid">
+                  {dishes.map((dish) => (
+                    <article key={dish.id} className="dish-card" onMouseMove={handleTilt} onMouseLeave={resetTilt}>
+                      <div className="dish-shot">
+                        {dish.imageUrl ? <img src={dish.imageUrl} alt={dish.name} /> : <span>{t.shot}</span>}
+                      </div>
+                      <div className="dish-body">
+                        <div className="dish-row">
+                          <h3>{dish.name}</h3>
+                          <span className="dish-price">{currencyFormatter.format(dish.price)}</span>
+                        </div>
+                        {dish.description && <p className="dish-desc">{dish.description}</p>}
+                      </div>
+                    </article>
+                  ))}
                 </div>
-                <div className="dish-body">
-                  <div className="dish-row">
-                    <h3>{dish.name}</h3>
-                    <span className="dish-price">{dish.price}</span>
-                  </div>
-                  <p className="dish-desc">{dish.desc}</p>
-                </div>
-              </article>
-            ))}
-          </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
+      <section id="reserve" className="reserve-section">
+        <div className="reserve-inner">
+          <p className="eyebrow">{lang === 'ru' ? 'Бронирование' : 'Reservation'}</p>
+          <h2 className="menu-title">{lang === 'ru' ? 'Забронировать стол' : 'Reserve a table'}</h2>
+
+          {reservationDone ? (
+            <div className="reserve-success">
+              <p>
+                {lang === 'ru'
+                  ? 'Заявка отправлена! Мы свяжемся с вами для подтверждения.'
+                  : 'Request sent! We will reach out to confirm.'}
+              </p>
+              <button type="button" className="btn btn-outline" onClick={() => setReservationDone(false)}>
+                {lang === 'ru' ? 'Забронировать ещё' : 'Book another table'}
+              </button>
+            </div>
+          ) : tablesError ? (
+            <div className="section-error">
+              <span>{tablesError}</span>
+            </div>
+          ) : (
+            <form className="reserve-form" onSubmit={handleReservationSubmit}>
+              <div className="reserve-row">
+                <label className="reserve-field">
+                  <span>{lang === 'ru' ? 'Имя' : 'Name'}</span>
+                  <input required value={reservationName} onChange={(e) => setReservationName(e.target.value)} />
+                </label>
+                <label className="reserve-field">
+                  <span>{lang === 'ru' ? 'Телефон' : 'Phone'}</span>
+                  <input value={reservationPhone} onChange={(e) => setReservationPhone(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="reserve-row">
+                <label className="reserve-field">
+                  <span>{lang === 'ru' ? 'Гостей' : 'Guests'}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={reservationGuests}
+                    onChange={(e) => setReservationGuests(Math.max(1, Number(e.target.value)))}
+                  />
+                </label>
+                <label className="reserve-field">
+                  <span>{lang === 'ru' ? 'Дата и время' : 'Date and time'}</span>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={reservationWhen}
+                    onChange={(e) => setReservationWhen(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <label className="reserve-field">
+                <span>{lang === 'ru' ? 'Стол' : 'Table'}</span>
+                <select
+                  required
+                  value={reservationTableId ?? ''}
+                  onChange={(e) => setReservationTableId(Number(e.target.value))}
+                >
+                  {eligibleTables.length === 0 && <option value="">{lang === 'ru' ? 'Нет мест' : 'No tables'}</option>}
+                  {eligibleTables.map((table) => (
+                    <option key={table.id} value={table.id}>
+                      {lang === 'ru' ? `Стол ${table.tableNumber} · до ${table.seatsCount} гостей` : `Table ${table.tableNumber} · up to ${table.seatsCount} guests`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="reserve-field">
+                <span>{lang === 'ru' ? 'Пожелания' : 'Notes'}</span>
+                <textarea rows={2} value={reservationNote} onChange={(e) => setReservationNote(e.target.value)} />
+              </label>
+
+              {reservationError && <div className="reserve-error">{reservationError}</div>}
+
+              <button type="submit" className="btn btn-primary" disabled={reservationSubmitting || !reservationTableId}>
+                {reservationSubmitting ? (lang === 'ru' ? 'Отправка…' : 'Sending…') : t.cta1}
+              </button>
+            </form>
+          )}
         </div>
       </section>
 

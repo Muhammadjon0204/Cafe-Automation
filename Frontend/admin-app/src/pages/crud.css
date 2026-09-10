@@ -1,0 +1,221 @@
+/* Shared list-page toolbar/action styles — used by Menu, Staff, and Reservations so
+   each page doesn't duplicate (or silently depend on another page's CSS having
+   already been loaded by React Router). */
+
+.crud-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.crud-search {
+  flex: 1;
+  max-width: 380px;
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  border: 1px solid var(--input-border);
+  background: var(--color-card);
+  color: var(--color-fg);
+}
+.crud-search:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px var(--input-focus-ring);
+}
+
+.crud-add-btn {
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.crud-add-btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.crud-secondary-btn {
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.crud-secondary-btn:hover {
+  background: var(--color-bg-2);
+}
+
+.crud-danger-btn {
+  color: var(--color-danger);
+}
+.crud-danger-btn:hover {
+  background: var(--color-danger-bg);
+}
+
+/* Generic inline "type a name, hit add" row — the category create form and the
+   dish form's "+ create new category" shortcut both use this. */
+.crud-inline-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.crud-inline-input {
+  flex: 1;
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: transparent;
+  color: var(--color-fg);
+}
+.crud-inline-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px var(--input-focus-ring);
+}
+
+/* Generic scrollable manager list (categories, and anything similar later) — a
+   named-entity row with an inline-editable name and action buttons. */
+.crud-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.crud-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.crud-list-name {
+  flex: 1;
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.crud-list-name:hover {
+  color: var(--color-accent);
+}
+.crud-list-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-bg-2);
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+/* No `color` here on purpose — .crud-danger-btn sets it, and a wrapper `button`
+   rule with its own color would out-specificity that class-only selector. */
+.crud-list-action-btn {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.crud-list-action-btn:hover:not(:disabled) {
+  background: var(--color-bg-2);
+}
+.crud-list-action-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* Create/edit form modal — shared by Dish and Staff forms (and any future one). */
+
+.crud-form-card {
+  max-width: 480px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.crud-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.crud-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.crud-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-fg);
+}
+.crud-form-field input,
+.crud-form-field select,
+.crud-form-field textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: transparent;
+  color: var(--color-fg);
+}
+.crud-form-field input:focus,
+.crud-form-field select:focus,
+.crud-form-field textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px var(--input-focus-ring);
+}
+
+.crud-form-error {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.crud-form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+}
+
+.crud-form-banner {
+  padding: var(--space-3);
+  border-radius: 8px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}

@@ -1,6 +1,5 @@
 export type Lang = 'ru' | 'en';
 export type ThemeMode = 'light' | 'dark';
-export type Accent = 'terracotta' | 'ochre' | 'emerald';
 export type CategoryId = 'coffee' | 'breakfast' | 'mains' | 'desserts';
 
 export interface NavItem {

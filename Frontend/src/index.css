@@ -11,6 +11,15 @@ body {
 body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-family: 'Montserrat', -apple-system, system-ui, sans-serif;
+}
+
+/* Chrome's UA stylesheet gives form controls a system font (e.g. Arial)
+   instead of inheriting from body — without this reset buttons/inputs
+   silently fall back off Montserrat regardless of .app's own font-family
+   (e.g. the "Забронировать стол" CTA button). */
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 #root {

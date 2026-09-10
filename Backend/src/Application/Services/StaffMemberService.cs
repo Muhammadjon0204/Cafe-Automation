@@ -96,7 +96,7 @@ public class StaffMemberService : IStaffMemberService
             Email = ServiceHelpers.TrimToNull(dto.Email),
             Role = dto.Role,
             Status = dto.Status,
-            HireDate = dto.HireDate,
+            HireDate = ServiceHelpers.AsUtc(dto.HireDate),
             Salary = dto.Salary,
             Note = ServiceHelpers.TrimToNull(dto.Note),
             CreatedAt = DateTime.UtcNow
@@ -133,8 +133,8 @@ public class StaffMemberService : IStaffMemberService
         staff.Email = ServiceHelpers.TrimToNull(dto.Email);
         staff.Role = dto.Role;
         staff.Status = dto.Status;
-        staff.HireDate = dto.HireDate;
-        staff.FiredDate = dto.Status == StaffStatus.Fired && dto.FiredDate == null ? DateTime.UtcNow : dto.FiredDate;
+        staff.HireDate = ServiceHelpers.AsUtc(dto.HireDate);
+        staff.FiredDate = dto.Status == StaffStatus.Fired && dto.FiredDate == null ? DateTime.UtcNow : ServiceHelpers.AsUtc(dto.FiredDate);
         staff.Salary = dto.Salary;
         staff.Note = ServiceHelpers.TrimToNull(dto.Note);
         staff.UpdatedAt = DateTime.UtcNow;
@@ -166,7 +166,7 @@ public class StaffMemberService : IStaffMemberService
         var statusChanged = staff.Status != dto.Status;
 
         staff.Status = dto.Status;
-        staff.FiredDate = dto.Status == StaffStatus.Fired ? dto.FiredDate ?? DateTime.UtcNow : dto.FiredDate;
+        staff.FiredDate = dto.Status == StaffStatus.Fired ? ServiceHelpers.AsUtc(dto.FiredDate) ?? DateTime.UtcNow : ServiceHelpers.AsUtc(dto.FiredDate);
         if (!string.IsNullOrWhiteSpace(dto.Note))
         {
             staff.Note = dto.Note.Trim();

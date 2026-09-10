@@ -1,0 +1,100 @@
+/* Shared color tokens. "Graphite & Sage": cool light-gray workspace, deep
+   charcoal-green sidebar, white cards, restrained sage-green accents. Scoped to
+   :root/:root.theme-dark rather than a wrapper class, since both admin-app and
+   client-app toggle theme-dark on document.documentElement.
+   client-app (AmbreLanding) keeps its own warm off-white/graphite bg/fg/card
+   tokens (--bg, --fg, --card, ...) — only --color-accent* and --shadow-* here
+   are shared 1:1 between the two apps; see AmbreLanding.css. */
+:root {
+  --color-bg: #F6F7F8;
+  --color-bg-2: #F1F4F2;
+  --color-surface-pattern: #E9EDEB;
+  --color-fg: #18201E;
+  --color-fg-2: #36403C;
+  --color-muted: #7B8581;
+  --color-muted-2: #AEB7B3;
+  --color-border: #E6E9E7;
+  --color-border-strong: #DCE3DF;
+  --color-divider: #ECEFEE;
+  --color-card: #FFFFFF;
+  --color-header-bg: rgba(246, 247, 248, .72);
+
+  --color-accent: #356859;
+  --color-accent-hover: #284F43;
+  --color-accent-pressed: #1F4036;
+  --color-accent-fg: #FFFFFF;
+  --color-accent-soft: #E7F0EC;
+  --color-accent-2: #C98B4A;
+  --color-accent-2-bg: #FBF3E8;
+  --color-accent-3: #5B6B64;
+  --color-accent-4: #E7F0EC;
+
+  --color-good: #2F765E;
+  --color-good-bg: #E7F4EE;
+  --color-warn: #A66A22;
+  --color-warn-bg: #FBF3E8;
+  --color-danger: #B94C4C;
+  --color-danger-hover: #A23F3F;
+  --color-danger-bg: #FBEDED;
+  --color-info: #466E9E;
+  --color-info-bg: #EBF2FA;
+
+  --input-border: #E1E6E3;
+  --input-focus-ring: rgba(53, 104, 89, .15);
+  --color-border-focus: #B9D2C6;
+
+  /* Sidebar is a fixed dark charcoal-green surface, independent of the light/dark
+     theme toggle below — a permanently-dark nav rail against the light workspace. */
+  --sidebar-bg: #1E2523;
+  --sidebar-bg-strong: #171D1B;
+  --sidebar-fg: #DDE5E1;
+  --sidebar-fg-muted: #AAB7B1;
+  --sidebar-hover-bg: rgba(255, 255, 255, .07);
+
+  --shadow-sm: 0 4px 16px rgba(24, 32, 30, .06);
+  --shadow-md: 0 2px 6px rgba(24, 32, 30, .05), 0 14px 34px -10px rgba(24, 32, 30, .12);
+  --shadow-lg: 0 10px 26px -6px rgba(24, 32, 30, .14), 0 30px 60px -16px rgba(24, 32, 30, .22);
+}
+
+:root.theme-dark {
+  --color-bg: #141917;
+  --color-bg-2: #1E2523;
+  --color-surface-pattern: #232B28;
+  --color-fg: #ECF1EF;
+  --color-fg-2: #C7D0CC;
+  --color-muted: #8B968F;
+  --color-muted-2: #5E6864;
+  --color-border: rgba(255, 255, 255, .09);
+  --color-border-strong: rgba(255, 255, 255, .16);
+  --color-divider: rgba(255, 255, 255, .06);
+  --color-card: #1B211F;
+  --color-header-bg: rgba(20, 25, 23, .72);
+
+  --color-accent: #356859;
+  --color-accent-hover: #284F43;
+  --color-accent-pressed: #1F4036;
+  --color-accent-fg: #FFFFFF;
+  --color-accent-soft: rgba(53, 104, 89, .22);
+  --color-accent-2: #D9A968;
+  --color-accent-2-bg: rgba(201, 139, 74, .16);
+  --color-accent-3: #93A39B;
+  --color-accent-4: rgba(53, 104, 89, .22);
+
+  --color-good: #4EAE8C;
+  --color-good-bg: rgba(78, 174, 140, .16);
+  --color-warn: #D99A52;
+  --color-warn-bg: rgba(217, 154, 82, .16);
+  --color-danger: #D97A7A;
+  --color-danger-hover: #E39494;
+  --color-danger-bg: rgba(217, 122, 122, .16);
+  --color-info: #7FA6D6;
+  --color-info-bg: rgba(127, 166, 214, .16);
+
+  --input-border: rgba(255, 255, 255, .14);
+  --input-focus-ring: rgba(78, 174, 140, .22);
+  --color-border-focus: #3E5449;
+
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, .32);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, .4), 0 16px 40px -12px rgba(0, 0, 0, .55);
+  --shadow-lg: 0 10px 28px -8px rgba(0, 0, 0, .5), 0 34px 70px -18px rgba(0, 0, 0, .68);
+}

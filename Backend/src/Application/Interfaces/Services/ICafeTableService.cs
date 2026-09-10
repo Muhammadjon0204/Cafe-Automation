@@ -13,6 +13,8 @@ public interface ICafeTableService
 
     Task<Result<GetCafeTableDto>> UpdateAsync(int id, UpdateCafeTableDto dto, CancellationToken cancellationToken = default);
 
+    Task<Result<GetCafeTableDto>> UpdateLayoutAsync(int id, UpdateCafeTableLayoutDto dto, CancellationToken cancellationToken = default);
+
     Task<Result> UpdateStatusAsync(int id, UpdateCafeTableStatusDto dto, CancellationToken cancellationToken = default);
 
     Task<Result> DeleteAsync(int id, CancellationToken cancellationToken = default);

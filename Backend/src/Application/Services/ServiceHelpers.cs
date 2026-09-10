@@ -53,4 +53,18 @@ internal static class ServiceHelpers
     {
         return staff == null ? string.Empty : BuildFullName(staff.FirstName, staff.MiddleName, staff.LastName);
     }
+
+    // API clients send DateTime values with no offset (e.g. a bare <input type="date">/
+    // "datetime-local" value), which System.Text.Json binds as Kind=Unspecified. Npgsql
+    // refuses to write anything but Kind=Utc into a "timestamp with time zone" column, so
+    // every client-supplied DateTime needs to pass through here before it touches an entity.
+    public static DateTime AsUtc(DateTime value)
+    {
+        return value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+    }
+
+    public static DateTime? AsUtc(DateTime? value)
+    {
+        return value.HasValue ? AsUtc(value.Value) : null;
+    }
 }

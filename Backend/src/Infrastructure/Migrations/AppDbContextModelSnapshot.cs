@@ -33,6 +33,11 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double>("Height")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(80.0);
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -46,8 +51,23 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<double>("PositionX")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(40.0);
+
+                    b.Property<double>("PositionY")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(40.0);
+
                     b.Property<int>("SeatsCount")
                         .HasColumnType("integer");
+
+                    b.Property<int>("Shape")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -57,6 +77,14 @@ namespace Infrastructure.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Width")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("double precision")
+                        .HasDefaultValue(80.0);
+
+                    b.Property<int?>("ZoneId")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -69,6 +97,8 @@ namespace Infrastructure.Migrations
                     b.HasIndex("TableNumber")
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
+
+                    b.HasIndex("ZoneId");
 
                     b.ToTable("CafeTables", (string)null);
                 });
@@ -383,7 +413,6 @@ namespace Infrastructure.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<int>("Status")
@@ -471,7 +500,6 @@ namespace Infrastructure.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<int>("Status")
@@ -542,7 +570,6 @@ namespace Infrastructure.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<int>("Status")
@@ -829,6 +856,50 @@ namespace Infrastructure.Migrations
                     b.ToTable("Tips", (string)null);
                 });
 
+            modelBuilder.Entity("Cafe.Domain.Entities.Zone", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BackgroundImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("Zones", (string)null);
+                });
+
             modelBuilder.Entity("Cafe.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -1033,6 +1104,16 @@ namespace Infrastructure.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Cafe.Domain.Entities.CafeTable", b =>
+                {
+                    b.HasOne("Cafe.Domain.Entities.Zone", "Zone")
+                        .WithMany("CafeTables")
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Zone");
                 });
 
             modelBuilder.Entity("Cafe.Domain.Entities.Discount", b =>
@@ -1265,6 +1346,11 @@ namespace Infrastructure.Migrations
                     b.Navigation("Payments");
 
                     b.Navigation("Tips");
+                });
+
+            modelBuilder.Entity("Cafe.Domain.Entities.Zone", b =>
+                {
+                    b.Navigation("CafeTables");
                 });
 #pragma warning restore 612, 618
         }

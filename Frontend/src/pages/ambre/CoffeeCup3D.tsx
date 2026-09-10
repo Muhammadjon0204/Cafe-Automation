@@ -1,10 +1,78 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { buildCoffeeBeanGeometry, buildCroissantGeometry } from './heroSceneObjects';
 
 interface CoffeeCup3DProps {
   enabled: boolean;
+  isDark: boolean;
   onActive: () => void;
+}
+
+/** Refs into the parts of the scene whose look depends on the light/dark
+ * theme — mutated in place by applyCoffeeSceneTheme() on toggle instead of
+ * tearing down and rebuilding the whole WebGL scene, which would stutter
+ * during the circle-reveal theme transition. */
+interface ThemeableScene {
+  renderer: THREE.WebGLRenderer;
+  ambient: THREE.AmbientLight;
+  hemi: THREE.HemisphereLight;
+  key: THREE.DirectionalLight;
+  fill: THREE.DirectionalLight;
+  rim: THREE.DirectionalLight;
+  ceramic: THREE.MeshPhysicalMaterial;
+  beanMaterial: THREE.MeshPhysicalMaterial;
+  pastryMaterial: THREE.MeshPhysicalMaterial;
+  contactShadowMaterial: THREE.MeshBasicMaterial;
+  groundMaterial: THREE.ShadowMaterial;
+  steamMaterials: THREE.ShaderMaterial[];
+}
+
+function applyCoffeeSceneTheme(scene: ThemeableScene, isDark: boolean) {
+  // Slightly reduced exposure in dark mode reads as calmer/cinematic rather
+  // than just "the same scene with darker paint".
+  scene.renderer.toneMappingExposure = isDark ? 0.96 : 1.05;
+
+  scene.ambient.color.set(isDark ? 0xffe9d2 : 0xfff4e8);
+  scene.ambient.intensity = isDark ? 0.26 : 0.32;
+
+  scene.hemi.color.set(isDark ? 0xd2bfa8 : 0xfff3e5);
+  scene.hemi.groundColor.set(isDark ? 0x111211 : 0xd9e1dc);
+  scene.hemi.intensity = isDark ? 0.42 : 0.5;
+
+  scene.key.color.set(isDark ? 0xffdcb0 : 0xfff1e0);
+  scene.key.intensity = isDark ? 1.55 : 1.35;
+
+  scene.fill.color.set(isDark ? 0xbfd9ce : 0xd7e4ff);
+  scene.fill.intensity = isDark ? 0.4 : 0.28;
+
+  // Rim runs hotter in dark mode — it's the main thing separating the pale
+  // ceramic edge from the graphite background instead of just ambient fill.
+  scene.rim.color.set(isDark ? 0xffe0b8 : 0xffd9ac);
+  scene.rim.intensity = isDark ? 0.95 : 0.6;
+
+  // Nearly the same ivory in both themes on purpose — the cup must not read
+  // as "gray" in dark mode, so it stays close to its light-mode albedo and
+  // lets the lighting (not the base color) carry the theme difference.
+  scene.ceramic.color.set(isDark ? 0xeae3da : 0xf2ede7);
+
+  // Roasted-bean brown and baked-croissant gold both stay close to their
+  // light-mode albedo too, same reasoning as the ceramic above — only a
+  // touch darker so they don't glow against the graphite background.
+  scene.beanMaterial.color.set(isDark ? 0x241209 : 0x2b1710);
+  scene.pastryMaterial.color.set(isDark ? 0xa66d2e : 0xb87a35);
+
+  scene.contactShadowMaterial.opacity = isDark ? 0.92 : 0.75;
+  scene.groundMaterial.opacity = isDark ? 0.22 : 0.14;
+
+  scene.steamMaterials.forEach((material, i) => {
+    const cfg = STEAM_CONFIGS[i];
+    // Warm taupe in light mode has no contrast against a dark backdrop, so
+    // dark mode shifts toward a soft ivory (never pure white) and a touch
+    // more opacity to stay visible without looking like glowing smoke.
+    material.uniforms.uColor.value.set(isDark ? 0xcdc3b2 : 0x94806b);
+    material.uniforms.uOpacity.value = cfg.opacity * (isDark ? 1.35 : 1);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +215,7 @@ const STEAM_FRAGMENT_SHADER = /* glsl */ `
   uniform float uTime;
   uniform float uSeed;
   uniform float uOpacity;
+  uniform vec3 uColor;
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7)) + uSeed * 13.1) * 43758.5453123);
@@ -175,10 +244,9 @@ const STEAM_FRAGMENT_SHADER = /* glsl */ `
     // carves it into a few thin wisps with gaps between them.
     float wisp = smoothstep(0.4, 0.82, n);
     float alpha = wisp * vFade * hFade * uOpacity;
-    // Warm taupe rather than white: the canvas composites over a light
-    // cream page background (alpha:true, no scene backdrop), so a
-    // near-white wisp has almost no contrast against it and disappears.
-    gl_FragColor = vec4(0.58, 0.5, 0.42, alpha);
+    // uColor is theme-driven (see applyCoffeeSceneTheme) since a fixed tone
+    // can't have contrast against both a cream and a graphite backdrop.
+    gl_FragColor = vec4(uColor, alpha);
   }
 `;
 
@@ -197,10 +265,24 @@ const STEAM_CONFIGS: SteamConfig[] = [
 ];
 const STEAM_HEIGHT = 1.5;
 
-export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
+export function CoffeeCup3D({ enabled, isDark, onActive }: CoffeeCup3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onActiveRef = useRef(onActive);
   onActiveRef.current = onActive;
+  const isDarkRef = useRef(isDark);
+  isDarkRef.current = isDark;
+  const themeSceneRef = useRef<ThemeableScene | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Theme toggles mutate the existing lights/materials in place (see
+  // applyCoffeeSceneTheme) instead of going through the [enabled]-gated
+  // effect below, which would tear down and rebuild the whole WebGL scene
+  // and stutter during the circle-reveal transition.
+  useEffect(() => {
+    const themeScene = themeSceneRef.current;
+    if (!themeScene) return;
+    applyCoffeeSceneTheme(themeScene, isDark);
+  }, [isDark]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -228,14 +310,22 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
     camera.position.set(0, 3.7, 4.9);
     camera.lookAt(0, 0.5, 0);
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: true,
+      powerPreference: 'high-performance',
+    });
+    // Explicit transparent clear so the cup composites over the hero's own
+    // CSS atmosphere (.coffee-scene::before/::after) instead of any renderer
+    // default backdrop — this is what removes the old flat white canvas.
+    renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(w, h, false);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
 
     // Procedural studio environment for soft physical-material reflections —
     // no external HDR asset, generated from a small in-memory room scene.
@@ -244,8 +334,16 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
     const envRenderTarget = pmremGenerator.fromScene(roomEnvironment, 0.04);
     scene.environment = envRenderTarget.texture;
 
-    // ---- lighting: warm key (45° upper side), cool dim fill, warm rim ----
-    scene.add(new THREE.AmbientLight(0xfff4e8, 0.32));
+    // ---- lighting: warm key (45° upper side), cool dim fill, warm rim,
+    // plus a hemisphere fill for a soft top/bottom tonal split. All colors
+    // and intensities are theme-driven — see applyCoffeeSceneTheme, called
+    // once below with the initial theme and again on every toggle.
+    const ambient = new THREE.AmbientLight(0xfff4e8, 0.32);
+    scene.add(ambient);
+
+    const hemi = new THREE.HemisphereLight(0xfff3e5, 0xd9e1dc, 0.5);
+    scene.add(hemi);
+
     const key = new THREE.DirectionalLight(0xfff1e0, 1.35);
     key.position.set(3.2, 5.4, 4.0);
     key.castShadow = true;
@@ -368,7 +466,74 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
     scene.add(ground);
 
     group.position.y = -0.08;
-    group.rotation.y = -0.5;
+
+    // ---- foreground coffee beans -----------------------------------------
+    // Loose on the table, not part of `group` — they must not spin with the
+    // cup. Depth-parallax comes from real placement (closer to the camera
+    // than the cup) plus a small independent nudge in the tick loop below.
+    const beanMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x2b1710,
+      roughness: 0.55,
+      clearcoat: 0.12,
+      clearcoatRoughness: 0.4,
+      envMapIntensity: 0.5,
+    });
+    const beanGroup = new THREE.Group();
+    const beanLayout = [
+      { x: -0.18, z: 1.05, rotY: 0.4, rotX: 0.15, scale: 1.0, seed: 0.2 },
+      { x: 0.14, z: 1.16, rotY: -0.6, rotX: -0.1, scale: 0.85, seed: 0.7 },
+      { x: 0.02, z: 0.96, rotY: 1.1, rotX: 0.3, scale: 0.92, seed: 1.4 },
+    ];
+    const beanGeometries = beanLayout.map((cfg) => buildCoffeeBeanGeometry(cfg.seed));
+    beanLayout.forEach((cfg, i) => {
+      const bean = new THREE.Mesh(beanGeometries[i], beanMaterial);
+      bean.position.set(cfg.x, -0.255, cfg.z);
+      bean.rotation.set(cfg.rotX, cfg.rotY, 0.2);
+      bean.scale.setScalar(cfg.scale);
+      bean.castShadow = true;
+      bean.receiveShadow = true;
+      beanGroup.add(bean);
+    });
+    scene.add(beanGroup);
+
+    // ---- background pastry (croissant) -------------------------------------
+    const pastryMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xb87a35,
+      roughness: 0.62,
+      clearcoat: 0.04,
+      clearcoatRoughness: 0.6,
+      envMapIntensity: 0.35,
+    });
+    const croissantGeometry = buildCroissantGeometry();
+    const croissant = new THREE.Mesh(croissantGeometry, pastryMaterial);
+    croissant.castShadow = true;
+    croissant.receiveShadow = true;
+    // Mostly flat with a gentle tilt — read from nearly above (like the
+    // saucer) so the camera's steep top-down angle shows its crescent
+    // silhouette clearly instead of viewing it edge-on.
+    croissant.rotation.set(0.06, 1.0, 0);
+    const pastryGroup = new THREE.Group();
+    pastryGroup.add(croissant);
+    pastryGroup.scale.setScalar(1.2);
+    const pastryBaseX = -0.98;
+    pastryGroup.position.set(pastryBaseX, -0.26, 0.1);
+    scene.add(pastryGroup);
+
+    // ---- secondary contact shadows (beans + pastry) -----------------------
+    // Reuses the cup's own contact-shadow material (created above) so every
+    // grounded object in the scene shares the same soft-shadow language.
+    // Parented to the same group as the object they sit under (local
+    // coordinates, not world) so they track the tick loop's small parallax
+    // nudge instead of drifting away from it.
+    const beanShadow = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.42), contactShadowMaterial);
+    beanShadow.rotation.x = -Math.PI / 2;
+    beanShadow.position.set(-0.02, -0.255 - 0.043, 1.06);
+    beanGroup.add(beanShadow);
+
+    const pastryShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.75), contactShadowMaterial);
+    pastryShadow.rotation.x = -Math.PI / 2;
+    pastryShadow.position.set(0, -0.028, 0);
+    pastryGroup.add(pastryShadow);
 
     // ---- steam: cheap shader-noise billboards, world-space so they stay --
     // ---- screen-facing regardless of the cup's own rotation ---------------
@@ -381,6 +546,7 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
           uTime: { value: 0 },
           uSeed: { value: cfg.seed },
           uOpacity: { value: cfg.opacity },
+          uColor: { value: new THREE.Color(0x94806b) },
         },
         transparent: true,
         depthWrite: false,
@@ -394,11 +560,52 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
     const steamAnchor = new THREE.Vector3();
     const steamWorld = new THREE.Vector3();
 
+    const steamMaterials = steamMeshes.map((mesh) => mesh.material as THREE.ShaderMaterial);
+    const themeScene: ThemeableScene = {
+      renderer,
+      ambient,
+      hemi,
+      key,
+      fill,
+      rim,
+      ceramic,
+      beanMaterial,
+      pastryMaterial,
+      contactShadowMaterial,
+      groundMaterial,
+      steamMaterials,
+    };
+    themeSceneRef.current = themeScene;
+    applyCoffeeSceneTheme(themeScene, isDarkRef.current);
+
     // ---- interaction: hover parallax + drag-to-spin for closer review ----
     const mouse = { x: 0, y: 0 };
     const target = { x: 0, y: 0 };
     let isDragging = false;
     let dragLastX = 0;
+    let idleSpin = -0.5;
+    let dragOffset = 0;
+
+    // ---- scroll-linked camera: 0 at the top of .hero, 1 once it has
+    // scrolled fully past — read fresh every frame instead of via a scroll
+    // listener so it never falls out of sync with the rAF loop.
+    const heroEl = wrap.closest('.hero') as HTMLElement | null;
+    let scrollSmoothed = 0;
+
+    // ---- pause the render loop while the hero is off-screen instead of
+    // burning GPU/CPU on a scene nobody sees.
+    let isVisible = true;
+    const visibilityObserver = heroEl
+      ? new IntersectionObserver(
+          (entries) => {
+            const wasVisible = isVisible;
+            isVisible = entries[0]?.isIntersecting ?? true;
+            if (isVisible && !wasVisible && mounted) tick();
+          },
+          { threshold: 0 },
+        )
+      : null;
+    visibilityObserver?.observe(heroEl!);
 
     const handleMouseMove = (e: MouseEvent) => {
       const r = wrap.getBoundingClientRect();
@@ -419,7 +626,7 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
       if (!isDragging) return;
       const dx = e.clientX - dragLastX;
       dragLastX = e.clientX;
-      group.rotation.y += dx * 0.008;
+      dragOffset += dx * 0.008;
     };
     const handlePointerUp = (e: PointerEvent) => {
       if (!isDragging) return;
@@ -449,16 +656,45 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
 
     const clock = new THREE.Clock();
     const tick = () => {
-      if (!mounted) return;
+      if (!mounted || !isVisible) return;
       const dt = Math.min(clock.getDelta(), 0.05);
       const elapsed = clock.getElapsedTime();
 
       target.x += (mouse.x - target.x) * 0.05;
       target.y += (mouse.y - target.y) * 0.05;
-      if (!isDragging) group.rotation.y += dt * 0.28;
+
+      if (heroEl) {
+        const rect = heroEl.getBoundingClientRect();
+        const rawProgress = rect.height > 0 ? -rect.top / rect.height : 0;
+        const clamped = Math.min(1, Math.max(0, rawProgress));
+        scrollSmoothed += (clamped - scrollSmoothed) * 0.06;
+      }
+
+      if (!isDragging) idleSpin += dt * 0.28;
+      // Scroll adds a slow extra turn on top of the idle spin/manual drag —
+      // by the time .hero has scrolled fully past, the cup has eased into a
+      // slightly different resting angle instead of jumping there.
+      group.rotation.y = idleSpin + dragOffset + scrollSmoothed * 0.35;
       group.rotation.x = target.y * 0.28;
       camera.position.x = target.x * 0.9;
+      // Subtle dolly-out on scroll — the composition breathes instead of
+      // just cutting to the next section.
+      camera.position.z = 4.9 + scrollSmoothed * 0.45;
       camera.lookAt(0, 0.5, 0);
+
+      // Foreground beans sit closer to the camera than the cup, so the same
+      // mouse-driven camera shift already parallaxes them further via pure
+      // perspective — this adds a small extra nudge on top so the layering
+      // reads clearly even on a shallow mouse movement.
+      beanGroup.position.x = target.x * 0.06;
+      beanGroup.position.y = target.y * 0.02;
+
+      // Background pastry moves less than the beans (it's farther from the
+      // camera) and slides further into view as the user scrolls, so it
+      // becomes "more visible" the way a background object naturally would
+      // when the camera eases back — see brief's hero scroll section.
+      pastryGroup.position.x = pastryBaseX + target.x * 0.025 + scrollSmoothed * 0.15;
+      pastryGroup.rotation.z = target.x * 0.05;
 
       steamMeshes.forEach((mesh, i) => {
         const cfg = STEAM_CONFIGS[i];
@@ -474,12 +710,14 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
     };
     tick();
 
-    canvas.style.opacity = '1';
+    setIsLoaded(true);
     onActiveRef.current();
 
     return () => {
       mounted = false;
+      themeSceneRef.current = null;
       cancelAnimationFrame(raf);
+      visibilityObserver?.disconnect();
       window.removeEventListener('resize', handleResize);
       wrap.removeEventListener('mousemove', handleMouseMove);
       wrap.removeEventListener('mouseleave', handleMouseLeave);
@@ -505,6 +743,14 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
       contactShadowMaterial.dispose();
       contactShadowGeometry.dispose();
       contactShadowTexture.dispose();
+      beanShadow.geometry.dispose();
+      pastryShadow.geometry.dispose();
+
+      beanMaterial.dispose();
+      beanGeometries.forEach((geometry) => geometry.dispose());
+
+      pastryMaterial.dispose();
+      croissantGeometry.dispose();
 
       groundMaterial.dispose();
       groundGeometry.dispose();
@@ -514,5 +760,9 @@ export function CoffeeCup3D({ enabled, onActive }: CoffeeCup3DProps) {
     };
   }, [enabled]);
 
-  return <canvas ref={canvasRef} className="hero-canvas" />;
+  return (
+    <div className={`coffee-scene__canvas${isLoaded ? ' is-loaded' : ''}`}>
+      <canvas ref={canvasRef} className="hero-canvas" />
+    </div>
+  );
 }

@@ -16,12 +16,12 @@ public class CafeTableRepository : ICafeTableRepository
 
     public Task<List<CafeTable>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return _context.CafeTables.ToListAsync(cancellationToken);
+        return _context.CafeTables.Include(x => x.Zone).ToListAsync(cancellationToken);
     }
 
     public Task<CafeTable?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return _context.CafeTables.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return _context.CafeTables.Include(x => x.Zone).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public async Task AddAsync(CafeTable table, CancellationToken cancellationToken = default)

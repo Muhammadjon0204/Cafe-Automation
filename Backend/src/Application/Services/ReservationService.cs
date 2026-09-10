@@ -45,6 +45,9 @@ public class ReservationService : IReservationService
 
     public async Task<Result<GetReservationDto>> CreateAsync(CreateReservationDto dto, CancellationToken cancellationToken = default)
     {
+        dto.ReservedAt = ServiceHelpers.AsUtc(dto.ReservedAt);
+        dto.ReservedUntil = ServiceHelpers.AsUtc(dto.ReservedUntil);
+
         var validation = await ValidateAsync(dto.CafeTableId, dto.CustomerId, dto.CustomerName, dto.Phone, dto.GuestsCount, dto.ReservedAt, dto.ReservedUntil, dto.Note, null, cancellationToken);
         if (!validation.IsSuccess)
         {
@@ -93,6 +96,9 @@ public class ReservationService : IReservationService
             return Result<GetReservationDto>.Failure("Invalid reservation status.");
         }
 
+        dto.ReservedAt = ServiceHelpers.AsUtc(dto.ReservedAt);
+        dto.ReservedUntil = ServiceHelpers.AsUtc(dto.ReservedUntil);
+
         var validation = await ValidateAsync(dto.CafeTableId, dto.CustomerId, dto.CustomerName, dto.Phone, dto.GuestsCount, dto.ReservedAt, dto.ReservedUntil, dto.Note, id, cancellationToken);
         if (!validation.IsSuccess)
         {
@@ -133,7 +139,7 @@ public class ReservationService : IReservationService
         reservation.UpdatedAt = DateTime.UtcNow;
         if (dto.Status == ReservationStatus.Cancelled)
         {
-            reservation.CancelledAt = dto.CancelledAt ?? DateTime.UtcNow;
+            reservation.CancelledAt = ServiceHelpers.AsUtc(dto.CancelledAt) ?? DateTime.UtcNow;
         }
 
         if (!string.IsNullOrWhiteSpace(dto.Note))

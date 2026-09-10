@@ -8,16 +8,33 @@
   --line-strong: rgba(26, 26, 26, .24);
   --card: #FFFFFF;
   --header-bg: rgba(250, 248, 245, .72);
-  --accent: #B15533;
-  --accent-fg: #FFFFFF;
-  --shadow-sm: 0 1px 2px rgba(40, 28, 18, .05), 0 2px 6px rgba(40, 28, 18, .05);
-  --shadow-md: 0 2px 6px rgba(40, 28, 18, .05), 0 14px 34px -10px rgba(40, 28, 18, .14);
-  --shadow-lg: 0 8px 20px -6px rgba(40, 28, 18, .14), 0 30px 60px -16px rgba(40, 28, 18, .24);
+
+  /* Accent and danger tones are pulled 1:1 from the shared design tokens
+     (Frontend/shared/src/theme/tokens.css) — same admin-app "Graphite & Sage"
+     green everywhere, live-linked via var() rather than copied hex, so both
+     apps stay in sync automatically. bg/fg/card above stay this page's own
+     warm off-white palette by design. --shadow-sm/md/lg aren't redeclared
+     here at all — every var(--shadow-*) below inherits straight from the
+     shared :root tokens. */
+  --accent: var(--color-accent);
+  --accent-hover: var(--color-accent-hover);
+  --accent-fg: var(--color-accent-fg);
+  --danger: var(--color-danger);
+  --danger-bg: var(--color-danger-bg);
+
+  /* Atmospheric backdrop behind the hero 3D cup (.coffee-scene below) — kept
+     as its own token set rather than reusing --bg/--accent so the glow can be
+     tuned independently of the flat page background it sits on top of. */
+  --coffee-scene-glow-core: rgba(255, 255, 255, 0.94);
+  --coffee-scene-glow-warm: rgba(231, 219, 206, 0.72);
+  --coffee-scene-glow-green: rgba(47, 113, 94, 0.11);
+  --coffee-scene-rim: #E4F0EA;
+  --coffee-scene-rim-soft: rgba(228, 240, 234, 0.3);
+  --coffee-scene-shadow: rgba(42, 35, 29, 0.14);
 
   min-height: 100vh;
   background: var(--bg);
-  overflow-x: hidden;
-  font-family: 'Manrope', system-ui, sans-serif;
+  font-family: 'Montserrat', system-ui, sans-serif;
   color: var(--fg);
   transition: background .35s ease, color .35s ease;
 }
@@ -32,16 +49,14 @@
   --line-strong: rgba(255, 255, 255, .24);
   --card: #1B1917;
   --header-bg: rgba(18, 17, 16, .72);
-  --accent: #D57A55;
-  --accent-fg: #1A1108;
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, .4), 0 16px 40px -12px rgba(0, 0, 0, .55);
-  --shadow-lg: 0 10px 28px -8px rgba(0, 0, 0, .5), 0 34px 70px -18px rgba(0, 0, 0, .68);
-}
 
-.app.accent-ochre { --accent: #B8862B; --accent-fg: #1A1108; }
-.app.accent-ochre.theme-dark { --accent: #D9A945; --accent-fg: #1A1108; }
-.app.accent-emerald { --accent: #2E6B54; --accent-fg: #FFFFFF; }
-.app.accent-emerald.theme-dark { --accent: #4E9C7D; --accent-fg: #0E1512; }
+  --coffee-scene-glow-core: rgba(94, 75, 57, 0.30);
+  --coffee-scene-glow-warm: rgba(186, 130, 79, 0.17);
+  --coffee-scene-glow-green: rgba(67, 133, 111, 0.17);
+  --coffee-scene-rim: #BFD9CE;
+  --coffee-scene-rim-soft: rgba(191, 217, 206, 0.28);
+  --coffee-scene-shadow: rgba(0, 0, 0, 0.48);
+}
 
 .app :where(a) { color: var(--accent); }
 .app ::selection { background: var(--accent); color: var(--accent-fg); }
@@ -96,14 +111,33 @@
 }
 
 .nav-link {
+  position: relative;
   font-size: 14px;
   font-weight: 500;
   color: var(--muted);
   text-decoration: none;
   letter-spacing: .01em;
+  padding-bottom: 6px;
   transition: color .2s ease;
 }
-.nav-link:hover { color: var(--fg); }
+.nav-link:hover,
+.nav-link:focus-visible { color: var(--fg); }
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform .28s ease;
+}
+.nav-link:hover::after,
+.nav-link:focus-visible::after { transform: scaleX(1); }
 
 .header-controls {
   display: flex;
@@ -153,6 +187,7 @@
   transition: border-color .2s ease, background .2s ease;
 }
 .icon-btn:hover { border-color: var(--line-strong); }
+.icon-btn:disabled { cursor: default; opacity: .65; }
 
 .nav-mobile {
   display: flex;
@@ -181,6 +216,12 @@
   gap: clamp(28px, 5vw, 72px);
   align-items: center;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* .coffee-scene below enforces a 420px min-width and can bleed past the
+     viewport on narrow screens. Clipped locally here (a sibling of
+     .site-header, not an ancestor) instead of on .app — overflow-x: hidden
+     on an ancestor of the sticky header turns it into a scroll container
+     and breaks position: sticky. */
+  overflow-x: hidden;
 }
 
 .hero-copy { animation: fadeUp .8s ease both; }
@@ -234,7 +275,7 @@
   font-size: 15px;
   font-weight: 600;
   text-decoration: none;
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, background .22s ease;
 }
 .btn-primary {
   background: var(--accent);
@@ -242,6 +283,7 @@
   box-shadow: var(--shadow-md);
 }
 .btn-primary:hover {
+  background: var(--accent-hover);
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
@@ -276,13 +318,71 @@
 .hero-visual {
   position: relative;
   width: 100%;
-  min-height: clamp(300px, 46vh, 580px);
+  min-height: clamp(340px, 50vh, 650px);
   display: grid;
   place-items: center;
 }
 
+/* Atmospheric wrapper for the 3D coffee cup — replaces the old flat white
+   canvas backdrop with a soft radial aura (::before) and a grounded contact
+   shadow (::after) so the cup dissolves into the hero instead of sitting on
+   a visible rectangle. See --coffee-scene-* tokens above for the two themes. */
+.coffee-scene {
+  position: relative;
+  width: min(42vw, 610px);
+  min-width: 420px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.coffee-scene::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(
+      circle at 48% 43%,
+      var(--coffee-scene-glow-core) 0%,
+      var(--coffee-scene-glow-warm) 31%,
+      var(--coffee-scene-rim-soft) 47%,
+      var(--coffee-scene-glow-green) 58%,
+      transparent 74%
+    );
+  filter: blur(14px);
+  opacity: .95;
+  pointer-events: none;
+  z-index: 0;
+  transition: background .45s ease, opacity .45s ease, filter .45s ease;
+}
+
+.coffee-scene::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  width: 55%;
+  height: 10%;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: var(--coffee-scene-shadow);
+  filter: blur(25px);
+  opacity: .8;
+  pointer-events: none;
+  z-index: 1;
+  transition: background .45s ease, opacity .45s ease, filter .45s ease;
+}
+
 .orb {
   position: relative;
+  z-index: 2;
   width: min(74%, 380px);
   aspect-ratio: 1;
   border-radius: 50%;
@@ -291,6 +391,7 @@
   display: grid;
   place-items: center;
   animation: floaty 7s ease-in-out infinite;
+  pointer-events: none;
 }
 .orb span {
   font-family: 'Playfair Display', serif;
@@ -300,13 +401,63 @@
   line-height: 1;
 }
 
-.hero-canvas {
+.coffee-scene__canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  z-index: 2;
   opacity: 0;
-  transition: opacity .7s ease;
+  transform: translateY(8px) scale(.985);
+  transition: opacity .7s ease, transform .9s cubic-bezier(.22, 1, .36, 1);
+}
+.coffee-scene__canvas.is-loaded {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.coffee-scene canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+  outline: none;
+}
+
+@media (max-width: 1100px) {
+  .coffee-scene {
+    width: min(46vw, 520px);
+    min-width: 340px;
+  }
+}
+
+@media (max-width: 760px) {
+  .coffee-scene {
+    width: min(92vw, 440px);
+    min-width: 0;
+    margin-inline: auto;
+  }
+
+  .coffee-scene::before {
+    width: 94%;
+    height: 94%;
+    filter: blur(12px);
+  }
+
+  .coffee-scene::after {
+    bottom: 15%;
+    width: 58%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coffee-scene__canvas {
+    transform: none;
+    transition: opacity .3s ease;
+  }
+  .orb {
+    animation: none;
+  }
 }
 
 /* Menu */
@@ -407,11 +558,13 @@
 }
 
 .dish-card {
+  /* radius + resting shadow tier match admin-app's card treatment
+     (dashboard-kpi-card: 16px, --shadow-sm) literally, not just visually. */
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   transition: transform .25s ease-out, box-shadow .25s ease-out;
   cursor: pointer;
   will-change: transform;
@@ -459,6 +612,124 @@
   font-size: 14px;
   line-height: 1.55;
   color: var(--muted);
+}
+
+.dish-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dish-empty {
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton-card {
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(100deg, var(--card) 30%, var(--bg2) 50%, var(--card) 70%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.section-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+/* Reservation */
+
+.reserve-section {
+  border-top: 1px solid var(--line);
+  transition: background .35s ease;
+}
+
+.reserve-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: clamp(56px, 8vw, 116px) clamp(20px, 4vw, 44px);
+}
+.reserve-inner .menu-title {
+  margin-bottom: clamp(28px, 4vw, 40px);
+}
+
+.reserve-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.reserve-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+@media (max-width: 560px) {
+  .reserve-row { grid-template-columns: 1fr; }
+}
+
+.reserve-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.reserve-field input,
+.reserve-field select,
+.reserve-field textarea {
+  font: inherit;
+  font-weight: 400;
+  font-size: 15px;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--fg);
+}
+.reserve-field input:focus,
+.reserve-field select:focus,
+.reserve-field textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.reserve-form > .btn {
+  align-self: flex-start;
+  border: none;
+  cursor: pointer;
+}
+.reserve-form > .btn:disabled {
+  opacity: .6;
+  cursor: default;
+  transform: none;
+}
+
+.reserve-error {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.reserve-success {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  font-size: 16px;
+  color: var(--fg);
 }
 
 /* Footer */

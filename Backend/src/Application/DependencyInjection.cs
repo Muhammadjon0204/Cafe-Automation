@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IReservationService, Services.ReservationService>();
         services.AddScoped<IStaffMemberService, Services.StaffMemberService>();
         services.AddScoped<ITipService, Services.TipService>();
+        services.AddScoped<IZoneService, Services.ZoneService>();
 
         return services;
     }

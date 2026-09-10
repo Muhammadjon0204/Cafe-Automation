@@ -22,7 +22,9 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
-        builder.Property(x => x.RowVersion).IsRowVersion();
+        // See OrderConfiguration for why ValueGeneratedNever is required alongside
+        // IsRowVersion on Npgsql (no native auto-generating rowversion type).
+        builder.Property(x => x.RowVersion).IsRowVersion().ValueGeneratedNever();
 
         builder.HasOne(x => x.Order)
             .WithMany(x => x.Items)

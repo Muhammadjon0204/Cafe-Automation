@@ -1,4 +1,6 @@
-﻿namespace Cafe.Application.DTOs.CafeTables;
+using Cafe.Domain.Enums;
+
+namespace Cafe.Application.DTOs.CafeTables;
 
 public class CreateCafeTableDto
 {
@@ -9,4 +11,16 @@ public class CreateCafeTableDto
     public string? Location { get; set; }
 
     public string? Note { get; set; }
+
+    public double? PositionX { get; set; }
+
+    public double? PositionY { get; set; }
+
+    public double? Width { get; set; }
+
+    public double? Height { get; set; }
+
+    public TableShape? Shape { get; set; }
+
+    public int? ZoneId { get; set; }
 }

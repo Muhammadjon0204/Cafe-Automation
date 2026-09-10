@@ -1,0 +1,25 @@
+/* Theme toggle circular reveal (see theme/useThemeTransition.ts) — the
+   default crossfade is disabled so the only motion is the clip-path circle
+   driven from JS. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Turning dark ON: the new (dark) snapshot sits above the old one by default
+   paint order already, so its growing clip-path circle is what's visible. */
+::view-transition-new(root) {
+  z-index: 1;
+}
+
+/* Turning dark OFF: we clip the *old* (dark) snapshot down to nothing to make
+   it look like the dark layer recedes into the button instead of the light
+   one growing out of it — for that to be visible, old must be lifted above
+   new for just this one transition. */
+html.theme-transition-reverse::view-transition-old(root) {
+  z-index: 2;
+}
+html.theme-transition-reverse::view-transition-new(root) {
+  z-index: 0;
+}

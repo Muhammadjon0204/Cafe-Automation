@@ -50,6 +50,14 @@ public class CafeTablesController : ControllerBase
         return result.ToActionResult();
     }
 
+    [HttpPatch("{id:int}/layout")]
+    [Authorize(Roles = RolePolicies.AdminOnly)]
+    public async Task<IActionResult> UpdateLayout(int id, [FromBody] UpdateCafeTableLayoutDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _cafeTableService.UpdateLayoutAsync(id, dto, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpPatch("{id:int}/status")]
     [Authorize(Roles = RolePolicies.AdminManagerWaiter)]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateCafeTableStatusDto dto, CancellationToken cancellationToken)

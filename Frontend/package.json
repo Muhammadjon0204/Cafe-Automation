@@ -3,13 +3,22 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "admin-app",
+    "shared"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:admin": "npm run dev -w admin-app",
+    "build:admin": "npm run build -w admin-app",
+    "lint:admin": "npm run lint -w admin-app",
+    "lint:all": "oxlint && npm run lint -w admin-app"
   },
   "dependencies": {
+    "@cafe/shared": "*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "three": "^0.185.1"

@@ -1,0 +1,208 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Reserves the vertical scrollbar's gutter up front so fluid-width content
+   (e.g. the /tables floor canvas) doesn't shift width when page height
+   crosses the viewport threshold and the scrollbar toggles on/off. */
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family: 'Montserrat', -apple-system, system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  transition: background .35s ease, color .35s ease;
+}
+
+/* Chrome's UA stylesheet gives form controls a system font (e.g. Arial)
+   instead of inheriting from body — without this reset every button/input/
+   select silently falls back off Montserrat regardless of the component's
+   own CSS. Covers cases individual component stylesheets missed (e.g.
+   sidebar-collapse-btn, user-menu-trigger). */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:root {
+  /* Denser spacing/type scale than the client app — this is a working tool,
+     not a showcase. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.45;
+
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+
+  /* Menu-workspace tokens — a denser, warmer layer on top of the shared
+     --color-* tokens (shared/src/theme/tokens.css), used by the redesigned
+     /menu page (rows, drawers, dialogs). Not a second theme system: these
+     are just additional surfaces/radii the shared palette doesn't define,
+     scoped to :root/:root.theme-dark exactly like --color-* already is. */
+  --admin-bg: #F4F5F3;
+  --admin-surface: #FFFFFF;
+  --admin-surface-soft: #F8F8F6;
+  --admin-surface-hover: #F3F5F2;
+
+  --admin-text: #1D2421;
+  --admin-text-secondary: #69716D;
+  --admin-text-muted: #939B97;
+
+  --admin-border: rgba(30, 48, 41, 0.10);
+  --admin-border-strong: rgba(30, 48, 41, 0.17);
+
+  --admin-primary: #356F5F;
+  --admin-primary-hover: #2E6254;
+  --admin-primary-soft: #E8F0EC;
+  --admin-primary-text: #234C40;
+
+  --admin-danger: #A95050;
+  --admin-danger-soft: #F8EAEA;
+
+  --admin-warning: #9B7136;
+  --admin-warning-soft: #F6EFE3;
+
+  --admin-shadow-sm:
+    0 1px 2px rgba(25, 35, 31, 0.04),
+    0 4px 14px rgba(25, 35, 31, 0.04);
+  --admin-shadow-md:
+    0 10px 30px rgba(25, 35, 31, 0.08),
+    0 2px 8px rgba(25, 35, 31, 0.05);
+
+  --admin-radius-sm: 10px;
+  --admin-radius-md: 14px;
+  --admin-radius-lg: 18px;
+  --admin-radius-xl: 24px;
+
+  --admin-overlay: rgba(24, 28, 26, 0.32);
+}
+
+/* Mirrors the shared tokens' own :root.theme-dark scoping (see AppShell,
+   which toggles the same class on documentElement) — a warm dark variant,
+   not an inverted light theme. */
+:root.theme-dark {
+  --admin-bg: #111513;
+  --admin-surface: #181E1B;
+  --admin-surface-soft: #1D2420;
+  --admin-surface-hover: #222B26;
+
+  --admin-text: #F1F0EB;
+  --admin-text-secondary: #B5BBB7;
+  --admin-text-muted: #7E8883;
+
+  --admin-border: rgba(224, 235, 228, 0.09);
+  --admin-border-strong: rgba(224, 235, 228, 0.15);
+
+  --admin-primary: #79A995;
+  --admin-primary-hover: #8AB7A5;
+  --admin-primary-soft: rgba(102, 155, 133, 0.16);
+  --admin-primary-text: #C5DED3;
+
+  --admin-danger: #D78484;
+  --admin-danger-soft: rgba(176, 79, 79, 0.16);
+
+  --admin-warning: #D0A96B;
+  --admin-warning-soft: rgba(184, 132, 57, 0.16);
+
+  --admin-shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.22),
+    0 6px 18px rgba(0, 0, 0, 0.14);
+  --admin-shadow-md:
+    0 18px 50px rgba(0, 0, 0, 0.34),
+    0 3px 10px rgba(0, 0, 0, 0.20);
+
+  --admin-overlay: rgba(0, 0, 0, 0.58);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    animation: none !important;
+  }
+}
+
+/* Shared placeholder/empty-state layout — used by placeholder pages,
+   AccessDeniedPage, and NotFoundPage (the last of which can render before
+   AppShell ever mounts, so this lives in the always-loaded base stylesheet
+   rather than shell.css). */
+.page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: var(--space-5);
+  padding: var(--space-6);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 12px;
+  color: var(--color-muted);
+}
+.page-state h1 {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: var(--color-fg);
+}
+.page-state a {
+  color: var(--color-accent);
+}
+
+/* Reusable loading/error primitives — every page that fetches data uses
+   these instead of a bare spinner or a silent blank screen. */
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(100deg, var(--color-card) 30%, var(--color-bg-2) 50%, var(--color-card) 70%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.error-retry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.error-retry-btn {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-4);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.error-retry-btn:hover {
+  background: var(--color-bg-2);
+}

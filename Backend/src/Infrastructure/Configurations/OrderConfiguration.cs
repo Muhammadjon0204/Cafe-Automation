@@ -30,7 +30,12 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
-        builder.Property(x => x.RowVersion).IsRowVersion();
+        // Npgsql has no native auto-generating rowversion type (unlike SQL Server), so
+        // ValueGeneratedOnAddOrUpdate (the .IsRowVersion() default) leaves the column out of
+        // the INSERT statement entirely and it hits its NOT NULL constraint. ValueGeneratedNever
+        // keeps the concurrency-token behavior but makes AppDbContext.SaveChanges responsible
+        // for supplying a fresh value on every Add/Modify (see ApplyRowVersions).
+        builder.Property(x => x.RowVersion).IsRowVersion().ValueGeneratedNever();
 
         builder.HasOne(x => x.Customer)
             .WithMany(x => x.Orders)

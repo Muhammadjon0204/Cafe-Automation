@@ -1,0 +1,93 @@
+.table-side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 380px;
+  max-width: 92vw;
+  background: var(--color-card);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.table-side-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table-side-panel-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+
+.table-side-panel-close {
+  font-size: 22px;
+  line-height: 1;
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
+.table-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.table-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+}
+
+.table-panel-label {
+  color: var(--color-muted);
+}
+
+.table-panel-total {
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.table-panel-items {
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+  margin: 0;
+}
+
+.table-panel-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Narrow viewports (tablet/phone) — bottom sheet instead of a right-docked panel, since
+   Live mode must stay usable on a waiter's tablet even though Editor mode is desktop-only. */
+@media (max-width: 720px) {
+  .table-side-panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+  }
+}

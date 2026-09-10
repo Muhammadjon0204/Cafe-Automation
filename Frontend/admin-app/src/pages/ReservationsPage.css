@@ -1,0 +1,77 @@
+.reservations-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.reservations-table {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow-x: auto;
+}
+
+.reservations-table-head,
+.reservations-table-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 0.7fr 1.3fr 1.2fr 1fr;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  min-width: 640px;
+}
+
+.reservations-table-head {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--color-muted-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.reservations-table-row {
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+  border-bottom: 1px solid var(--color-border);
+}
+.reservations-table-row:last-child {
+  border-bottom: none;
+}
+
+.reservation-guest-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: var(--line-height-tight);
+}
+.reservation-guest-name {
+  font-weight: 600;
+}
+.reservation-guest-phone {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.reservation-status {
+  font-weight: 600;
+}
+.reservation-status--new { color: var(--color-muted-2); }
+.reservation-status--good { color: var(--color-good); }
+.reservation-status--warn { color: var(--color-warn); }
+.reservation-status--cancel { color: var(--color-muted-2); }
+
+.reservation-row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.reservation-row-actions button {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
