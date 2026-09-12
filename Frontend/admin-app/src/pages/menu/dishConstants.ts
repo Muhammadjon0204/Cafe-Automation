@@ -27,7 +27,7 @@ export const DISH_TYPE_LABEL: Record<number, string> = Object.fromEntries(DISH_T
 
 export const currencyFormatter = new Intl.NumberFormat('ru-RU', {
   style: 'currency',
-  currency: 'RUB',
+  currency: 'TJS',
   maximumFractionDigits: 0,
 });
 

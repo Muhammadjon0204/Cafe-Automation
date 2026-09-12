@@ -1,20 +1,24 @@
 import { Skeleton } from '../../components/Skeleton';
 
-/** Skeleton rows shaped like the real menu row (media/title/meta/status/action),
- * shown instead of a full-page spinner while dishes/categories are loading. */
+/** Skeleton columns shaped like the real category-columns board (header +
+ * a couple of card-shaped blocks per column), shown instead of a full-page
+ * spinner while dishes/categories are loading. */
 export function MenuSkeleton() {
   return (
     <div className="menu-skeleton" aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div className="menu-skeleton-row" key={i}>
-          <Skeleton width={56} height={48} className="menu-skeleton-media" />
-          <div className="menu-skeleton-text">
-            <Skeleton width="42%" height={14} />
-            <Skeleton width="65%" height={12} />
-          </div>
-          <Skeleton width={70} height={14} />
-          <Skeleton width={90} height={24} className="menu-skeleton-pill" />
-          <Skeleton width={28} height={28} className="menu-skeleton-pill" />
+      {[0, 1, 2].map((column) => (
+        <div className="menu-skeleton-column" key={column}>
+          <Skeleton width="55%" height={16} />
+          {[0, 1].map((card) => (
+            <div className="menu-skeleton-card" key={card}>
+              <Skeleton width="80%" height={14} />
+              <Skeleton width="45%" height={12} />
+              <div className="menu-skeleton-card-footer">
+                <Skeleton width={72} height={12} />
+                <Skeleton width={24} height={24} className="menu-skeleton-pill" />
+              </div>
+            </div>
+          ))}
         </div>
       ))}
     </div>

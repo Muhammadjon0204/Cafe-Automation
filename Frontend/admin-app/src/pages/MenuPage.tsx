@@ -23,12 +23,12 @@ import { errorMessage } from '../lib/errorMessage';
 import { CategoryManagerDrawer } from './menu/CategoryManagerDrawer';
 import { CategoryTabs } from './menu/CategoryTabs';
 import { classifyDishState, sortDishes } from './menu/dishConstants';
+import { DishCard } from './menu/DishCard';
 import { DishEditorDrawer } from './menu/DishEditorDrawer';
+import { MenuCategoryColumn } from './menu/MenuCategoryColumn';
 import { MenuEmptyState } from './menu/MenuEmptyState';
-import { MenuItemRow } from './menu/MenuItemRow';
 import { MenuOverview } from './menu/MenuOverview';
 import { MenuPageHeader } from './menu/MenuPageHeader';
-import { MenuSection } from './menu/MenuSection';
 import { MenuSkeleton } from './menu/MenuSkeleton';
 import { MenuToolbar } from './menu/MenuToolbar';
 import { useMenuFilters } from './menu/useMenuFilters';
@@ -129,8 +129,6 @@ export function MenuPage() {
       .sort((a, b) => (a.category?.name ?? '').localeCompare(b.category?.name ?? '', 'ru'))
       .map((group) => ({ ...group, dishes: sortDishes(group.dishes, filters.sort) }));
   }, [filteredDishes, categories, filters.sort]);
-
-  const flatSortedDishes = useMemo(() => sortDishes(filteredDishes, filters.sort), [filteredDishes, filters.sort]);
 
   const toggleSection = (key: string) => {
     setCollapsedSections((prev) => {
@@ -276,11 +274,9 @@ export function MenuPage() {
   }
 
   const isFiltered = Boolean(filters.search.trim()) || filters.categoryId !== 'all' || filters.status !== 'all';
-  const activeCategoryName =
-    filters.categoryId !== 'all' ? categories.find((c) => c.id === filters.categoryId)?.name ?? null : null;
 
-  const renderRow = (dish: Dish) => (
-    <MenuItemRow
+  const renderCard = (dish: Dish) => (
+    <DishCard
       key={dish.id}
       dish={dish}
       canManage={isManager}
@@ -354,22 +350,20 @@ export function MenuPage() {
               actionLabel={isFiltered ? 'Сбросить фильтры' : undefined}
               onAction={isFiltered ? filters.resetFilters : undefined}
             />
-          ) : activeCategoryName ? (
-            <div className="menu-rows">{flatSortedDishes.map(renderRow)}</div>
           ) : (
-            <div className="menu-groups">
+            <div className="menu-columns">
               {groupedDishes.map(({ category, dishes: dishesInGroup }) => {
                 const key = category ? String(category.id) : 'none';
                 return (
-                  <MenuSection
+                  <MenuCategoryColumn
                     key={key}
                     title={category?.name ?? 'Без категории'}
                     count={dishesInGroup.length}
                     collapsed={collapsedSections.has(key)}
                     onToggleCollapse={() => toggleSection(key)}
                   >
-                    <div className="menu-rows">{dishesInGroup.map(renderRow)}</div>
-                  </MenuSection>
+                    {dishesInGroup.map(renderCard)}
+                  </MenuCategoryColumn>
                 );
               })}
             </div>

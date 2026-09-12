@@ -88,6 +88,15 @@ export function deleteCategory(id: number): Promise<void> {
   return apiClient.delete<void>(`/categories/${id}`);
 }
 
+// Not tied to a dish id — a photo is picked while composing the create-dish form too,
+// before any Dish row exists. Returns a URL to put straight onto DishFormValues.imageUrl,
+// same as a pasted one (see Backend/src/Api/Controllers/DishesController.cs UploadPhoto).
+export function uploadDishPhoto(file: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient.post<{ url: string }>('/dishes/photo-uploads', formData);
+}
+
 export function createDish(dto: DishFormValues): Promise<Dish> {
   return apiClient.post<Dish>('/dishes', dto);
 }

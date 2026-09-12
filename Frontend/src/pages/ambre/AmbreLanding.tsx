@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
 import { TRANSLATIONS } from './data';
 import type { Lang } from './types';
 import { ArrowIcon, MenuIcon, MoonIcon, SunIcon } from './icons';
@@ -12,6 +12,7 @@ import {
   type ApiCategory,
   type ApiDish,
 } from './api';
+import { CinematicExperience } from './cinematic/CinematicExperience';
 import './AmbreLanding.css';
 
 const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
@@ -22,8 +23,6 @@ function defaultReservationDateTime(): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${inTwoHours.getFullYear()}-${pad(inTwoHours.getMonth() + 1)}-${pad(inTwoHours.getDate())}T${pad(inTwoHours.getHours())}:00`;
 }
-
-const CoffeeCup3D = lazy(() => import('./CoffeeCup3D').then((m) => ({ default: m.CoffeeCup3D })));
 
 const MOBILE_BREAKPOINT = 820;
 
@@ -37,7 +36,6 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
   const [activeCat, setActiveCat] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [threeActive, setThreeActive] = useState(false);
 
   // Menu data comes from the real backend (GET /api/categories, GET /api/dishes) — the
   // hardcoded RU/EN pairs in data.ts only cover the surrounding page chrome now. The
@@ -232,44 +230,7 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
         )}
       </header>
 
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="eyebrow">{t.eyebrow}</p>
-          <h1 className="hero-title">
-            <span>{t.heroLine1}</span>
-            <span className="hero-title-italic">{t.heroLine2}</span>
-          </h1>
-          <p className="hero-tagline">{t.tagline}</p>
-          <div className="hero-cta">
-            <a href="#reserve" className="btn btn-primary">
-              {t.cta1}
-            </a>
-            <a href="#menu" className="btn btn-outline">
-              {t.cta2}
-            </a>
-          </div>
-          <div className="hero-meta">
-            <span>{t.metaHours}</span>
-            <span className="dot" />
-            <span>{t.metaAddr}</span>
-          </div>
-        </div>
-
-        <div className="hero-visual">
-          <div className="coffee-scene" aria-label="Animated 3D coffee cup">
-            {!threeActive && (
-              <div className="orb" aria-hidden="true">
-                <span>A</span>
-              </div>
-            )}
-            {show3d && !isMobile && (
-              <Suspense fallback={null}>
-                <CoffeeCup3D enabled={show3d} isDark={isDark} onActive={() => setThreeActive(true)} />
-              </Suspense>
-            )}
-          </div>
-        </div>
-      </section>
+      <CinematicExperience lang={lang} isDark={isDark} enabled={show3d} />
 
       <section id="menu" className="menu-section">
         <div className="menu-inner">

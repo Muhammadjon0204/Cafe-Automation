@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
-import type { Category, Dish, DishFormValues } from '../../api/menuApi';
+import { uploadDishPhoto, type Category, type Dish, type DishFormValues } from '../../api/menuApi';
 import { ChevronDownIcon, CloseIcon } from '../../components/icons';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { Switch } from '../../components/Switch';
@@ -15,6 +15,11 @@ import { PhotoIcon } from './menuIcons';
 // Sentinel <option> value for "+ create new category" — never a real CategoryId,
 // so it can't collide with one.
 const CREATE_NEW_CATEGORY_VALUE = '__new_category__';
+
+// Kept in sync with DishesController's AllowedPhotoContentTypes / MaxPhotoFileSizeBytes
+// (same constants ZoneManagerModal.tsx mirrors from ZonesController for the same reason).
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PHOTO_FILE_SIZE_BYTES = 8 * 1024 * 1024;
 
 interface DishEditorDrawerProps {
   dish: Dish | null;
@@ -42,6 +47,9 @@ export function DishEditorDrawer({
   onCreateCategory,
 }: DishEditorDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [showAdditional, setShowAdditional] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -148,6 +156,29 @@ export function DishEditorDrawer({
     }
   };
 
+  const handlePhotoFileChange = async (file: File | undefined) => {
+    if (!file) return;
+    if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+      setPhotoUploadError('Только JPEG, PNG или WebP.');
+      return;
+    }
+    if (file.size > MAX_PHOTO_FILE_SIZE_BYTES) {
+      setPhotoUploadError('Файл должен быть не больше 8 МБ.');
+      return;
+    }
+    setPhotoUploadError(null);
+    setPhotoUploading(true);
+    try {
+      const { url } = await uploadDishPhoto(file);
+      setValue('imageUrl', url, { shouldDirty: true, shouldValidate: true });
+    } catch (error) {
+      setPhotoUploadError(errorMessage(error, 'Не удалось загрузить фото.'));
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
   const imageUrlValue = watch('imageUrl');
   const isAvailableValue = Boolean(watch('isAvailable'));
   const isSeasonalValue = Boolean(watch('isSeasonal'));
@@ -206,21 +237,40 @@ export function DishEditorDrawer({
                     )}
                   </div>
                   <div className="dish-photo-input">
-                    <label className="dish-field">
-                      <span>Ссылка на фотографию</span>
-                      <input placeholder="https://…" {...register('imageUrl')} />
-                      <span className="dish-field-hint">Вставьте прямую ссылку на изображение блюда</span>
-                      {errors.imageUrl && <span className="dish-field-error">{errors.imageUrl.message}</span>}
-                    </label>
-                    {imageUrlValue && (
+                    <span>Фото блюда</span>
+                    <div className="dish-photo-actions">
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept={ALLOWED_PHOTO_TYPES.join(',')}
+                        className="dish-photo-file-input"
+                        onChange={(e) => handlePhotoFileChange(e.target.files?.[0])}
+                      />
                       <button
                         type="button"
-                        className="dish-photo-remove"
-                        onClick={() => setValue('imageUrl', '', { shouldDirty: true })}
+                        className="btn-secondary btn-sm"
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={photoUploading}
+                        aria-busy={photoUploading}
                       >
-                        Удалить фотографию
+                        {photoUploading ? 'Загрузка…' : 'Выбрать фото'}
                       </button>
-                    )}
+                      {imageUrlValue && (
+                        <button
+                          type="button"
+                          className="dish-photo-remove"
+                          onClick={() => setValue('imageUrl', '', { shouldDirty: true })}
+                        >
+                          Удалить
+                        </button>
+                      )}
+                    </div>
+                    <label className="dish-field">
+                      <span className="dish-field-hint">Или вставьте прямую ссылку на изображение</span>
+                      <input placeholder="https://…" {...register('imageUrl')} />
+                      {errors.imageUrl && <span className="dish-field-error">{errors.imageUrl.message}</span>}
+                      {photoUploadError && <span className="dish-field-error">{photoUploadError}</span>}
+                    </label>
                   </div>
                 </div>
 
@@ -296,7 +346,7 @@ export function DishEditorDrawer({
                     <span>Цена</span>
                     <div className="dish-input-suffix">
                       <input type="number" step="0.01" {...register('price')} />
-                      <span>₽</span>
+                      <span>TJS</span>
                     </div>
                     {errors.price && <span className="dish-field-error">{errors.price.message}</span>}
                   </label>
@@ -305,7 +355,7 @@ export function DishEditorDrawer({
                       <span>Себестоимость</span>
                       <div className="dish-input-suffix">
                         <input type="number" step="0.01" {...register('costPrice')} />
-                        <span>₽</span>
+                        <span>TJS</span>
                       </div>
                       {errors.costPrice && <span className="dish-field-error">{errors.costPrice.message}</span>}
                     </label>
@@ -399,7 +449,12 @@ export function DishEditorDrawer({
                 <button type="button" className="btn-secondary" onClick={attemptClose} disabled={busy}>
                   Отмена
                 </button>
-                <button type="submit" className="btn-primary" disabled={busy || showNewCategory} aria-busy={busy}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={busy || showNewCategory || photoUploading}
+                  aria-busy={busy}
+                >
                   {busy ? 'Сохранение…' : dish ? 'Сохранить изменения' : 'Создать блюдо'}
                 </button>
               </div>
