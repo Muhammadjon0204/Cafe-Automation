@@ -13,12 +13,26 @@ public class CafeTableService : ICafeTableService
     private readonly ICafeTableRepository _tableRepository;
     private readonly IZoneRepository _zoneRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IRealtimeNotifier _realtimeNotifier;
 
-    public CafeTableService(ICafeTableRepository tableRepository, IZoneRepository zoneRepository, IUnitOfWork unitOfWork)
+    public CafeTableService(ICafeTableRepository tableRepository, IZoneRepository zoneRepository, IUnitOfWork unitOfWork, IRealtimeNotifier realtimeNotifier)
     {
         _tableRepository = tableRepository;
         _zoneRepository = zoneRepository;
         _unitOfWork = unitOfWork;
+        _realtimeNotifier = realtimeNotifier;
+    }
+
+    // See OrderService.NotifyOrderChangedAsync — same best-effort reasoning.
+    private async Task NotifyTableChangedAsync(int tableId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _realtimeNotifier.TableChangedAsync(tableId, cancellationToken);
+        }
+        catch
+        {
+        }
     }
 
     public async Task<Result<PagedResult<GetCafeTableDto>>> GetAllAsync(CafeTableFilterDto filter, CancellationToken cancellationToken = default)
@@ -99,6 +113,7 @@ public class CafeTableService : ICafeTableService
 
         await _tableRepository.AddAsync(table, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyTableChangedAsync(table.Id, cancellationToken);
         return Result<GetCafeTableDto>.Success(MapToDto(table), "Table created.");
     }
 
@@ -130,6 +145,7 @@ public class CafeTableService : ICafeTableService
 
         _tableRepository.Update(table);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyTableChangedAsync(table.Id, cancellationToken);
         return Result<GetCafeTableDto>.Success(MapToDto(table), "Table updated.");
     }
 
@@ -172,6 +188,7 @@ public class CafeTableService : ICafeTableService
 
         _tableRepository.Update(table);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyTableChangedAsync(table.Id, cancellationToken);
         return Result<GetCafeTableDto>.Success(MapToDto(table), "Table layout updated.");
     }
 
@@ -192,6 +209,7 @@ public class CafeTableService : ICafeTableService
         table.UpdatedAt = DateTime.UtcNow;
         _tableRepository.Update(table);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyTableChangedAsync(table.Id, cancellationToken);
         return Result.Success("Table status updated.");
     }
 
@@ -208,6 +226,7 @@ public class CafeTableService : ICafeTableService
         table.UpdatedAt = DateTime.UtcNow;
         _tableRepository.Update(table);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyTableChangedAsync(table.Id, cancellationToken);
         return Result.Success("Table deleted.");
     }
 

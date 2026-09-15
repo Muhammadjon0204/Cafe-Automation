@@ -6,12 +6,14 @@ import { ROUTE_ROLES } from '../../routes/routeRoles';
 import {
   ChevronCollapseIcon,
   DashboardIcon,
+  KitchenIcon,
   MenuSectionIcon,
   OrdersIcon,
   ReportsIcon,
   ReservationsIcon,
   StaffIcon,
   TableIcon,
+  WaiterIcon,
 } from '../icons';
 
 interface NavItem {
@@ -24,6 +26,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { path: ROUTES.dashboard, label: 'Dashboard', icon: DashboardIcon },
   { path: ROUTES.orders, label: 'Orders', icon: OrdersIcon },
+  { path: ROUTES.kitchen, label: 'Kitchen', icon: KitchenIcon, allowedRoles: ROUTE_ROLES.kitchen },
+  { path: ROUTES.waiter, label: 'Waiter', icon: WaiterIcon, allowedRoles: ROUTE_ROLES.waiter },
   { path: ROUTES.menu, label: 'Menu', icon: MenuSectionIcon },
   { path: ROUTES.staff, label: 'Staff', icon: StaffIcon, allowedRoles: ROUTE_ROLES.staff },
   { path: ROUTES.reports, label: 'Reports', icon: ReportsIcon, allowedRoles: ROUTE_ROLES.reports },

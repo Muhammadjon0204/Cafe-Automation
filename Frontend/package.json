@@ -5,6 +5,8 @@
   "type": "module",
   "workspaces": [
     "admin-app",
+    "kitchen-app",
+    "waiter-app",
     "shared"
   ],
   "scripts": {
@@ -15,11 +17,16 @@
     "dev:admin": "npm run dev -w admin-app",
     "build:admin": "npm run build -w admin-app",
     "lint:admin": "npm run lint -w admin-app",
-    "lint:all": "oxlint && npm run lint -w admin-app"
+    "dev:kitchen": "npm run dev -w kitchen-app",
+    "build:kitchen": "npm run build -w kitchen-app",
+    "lint:kitchen": "npm run lint -w kitchen-app",
+    "dev:waiter": "npm run dev -w waiter-app",
+    "build:waiter": "npm run build -w waiter-app",
+    "lint:waiter": "npm run lint -w waiter-app",
+    "lint:all": "oxlint && npm run lint -w admin-app && npm run lint -w kitchen-app && npm run lint -w waiter-app"
   },
   "dependencies": {
     "@cafe/shared": "*",
-    "gsap": "^3.15.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "three": "^0.185.1"

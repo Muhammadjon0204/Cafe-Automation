@@ -17,7 +17,11 @@ import { pushToast } from '../components/toast/toastBus';
 import { errorMessage } from '../lib/errorMessage';
 import './OrdersPage.css';
 
-const BOARD_QUERY_KEY = ['orders-board'];
+// Array form (not a single 'orders-board' string) so AppShell's realtime handler
+// can invalidate the whole ['orders', ...] prefix in one call and catch every
+// orders-flavored query across pages (this board, KitchenPage, WaiterPage, and
+// TablesPage's by-table lookup) without needing to know each one's exact key.
+const BOARD_QUERY_KEY = ['orders', 'board'];
 const PAID_STATUS = 3;
 
 const COLUMNS: { status: number; label: string }[] = [
@@ -38,10 +42,12 @@ export function OrdersPage() {
 
   // A 100-row page covers every order currently in flight for a single café; if that
   // stops being true this needs real pagination/virtualization instead of one big page.
+  // The realtime hub (see AppShell) is the primary update path now — this interval is
+  // just a safety net for a dropped/reconnecting connection, not the main mechanism.
   const boardQuery = useQuery({
     queryKey: BOARD_QUERY_KEY,
     queryFn: () => getOrders({ pageSize: 100, pageNumber: 1 }),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const orders = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data]);

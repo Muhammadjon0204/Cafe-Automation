@@ -96,9 +96,9 @@ export function TablesPage() {
     queryKey: TABLES_QUERY_KEY,
     queryFn: getTables,
     enabled: canView,
-    // TODO: replace with SignalR once a hub broadcasts TableStatusChanged (see CLAUDE.md's
-    // /tables realtime note) — polling mirrors ReservationsPage's existing convention.
-    refetchInterval: 10_000,
+    // Realtime hub (AppShell) is the primary update path now — this interval is just a
+    // safety net for a dropped/reconnecting connection.
+    refetchInterval: 60_000,
   });
   const zonesQuery = useQuery({ queryKey: ZONES_QUERY_KEY, queryFn: getZones, enabled: canView });
 

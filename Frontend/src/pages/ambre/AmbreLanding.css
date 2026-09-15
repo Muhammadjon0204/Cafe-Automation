@@ -22,6 +22,16 @@
   --danger: var(--color-danger);
   --danger-bg: var(--color-danger-bg);
 
+  /* Atmospheric backdrop behind the hero 3D cup (.coffee-scene below) — kept
+     as its own token set rather than reusing --bg/--accent so the glow can be
+     tuned independently of the flat page background it sits on top of. */
+  --coffee-scene-glow-core: rgba(255, 255, 255, 0.94);
+  --coffee-scene-glow-warm: rgba(231, 219, 206, 0.72);
+  --coffee-scene-glow-green: rgba(47, 113, 94, 0.11);
+  --coffee-scene-rim: #E4F0EA;
+  --coffee-scene-rim-soft: rgba(228, 240, 234, 0.3);
+  --coffee-scene-shadow: rgba(42, 35, 29, 0.14);
+
   min-height: 100vh;
   background: var(--bg);
   font-family: 'Montserrat', system-ui, sans-serif;
@@ -39,10 +49,27 @@
   --line-strong: rgba(255, 255, 255, .24);
   --card: #1B1917;
   --header-bg: rgba(18, 17, 16, .72);
+
+  --coffee-scene-glow-core: rgba(94, 75, 57, 0.30);
+  --coffee-scene-glow-warm: rgba(186, 130, 79, 0.17);
+  --coffee-scene-glow-green: rgba(67, 133, 111, 0.17);
+  --coffee-scene-rim: #BFD9CE;
+  --coffee-scene-rim-soft: rgba(191, 217, 206, 0.28);
+  --coffee-scene-shadow: rgba(0, 0, 0, 0.48);
 }
 
 .app :where(a) { color: var(--accent); }
 .app ::selection { background: var(--accent); color: var(--accent-fg); }
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(-10px); }
+  50% { transform: translateY(12px); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
 
 /* Header */
 
@@ -178,9 +205,26 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* Shared section label — also used by the cinematic chapter overlay
-   (see cinematic/CinematicExperience.css) and the menu/reserve sections
-   below. */
+/* Hero */
+
+.hero {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(36px, 5vw, 72px) clamp(20px, 4vw, 44px) clamp(48px, 6vw, 88px);
+  min-height: calc(100vh - 70px);
+  display: grid;
+  gap: clamp(28px, 5vw, 72px);
+  align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* .coffee-scene below enforces a 420px min-width and can bleed past the
+     viewport on narrow screens. Clipped locally here (a sibling of
+     .site-header, not an ancestor) instead of on .app — overflow-x: hidden
+     on an ancestor of the sticky header turns it into a scroll container
+     and breaks position: sticky. */
+  overflow-x: hidden;
+}
+
+.hero-copy { animation: fadeUp .8s ease both; }
 
 .eyebrow {
   margin: 0 0 22px;
@@ -189,6 +233,37 @@
   letter-spacing: .24em;
   text-transform: uppercase;
   color: var(--accent);
+}
+
+.hero-title {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: clamp(42px, 6.4vw, 84px);
+  line-height: 1.02;
+  letter-spacing: -.02em;
+  color: var(--fg);
+}
+.hero-title span { display: block; }
+.hero-title-italic {
+  font-style: italic;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.hero-tagline {
+  margin: 24px 0 0;
+  max-width: 460px;
+  font-size: clamp(16px, 1.5vw, 19px);
+  line-height: 1.62;
+  color: var(--muted);
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 36px;
 }
 
 .btn {
@@ -221,6 +296,168 @@
 .btn-outline:hover {
   transform: translateY(-2px);
   border-color: var(--fg);
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 42px;
+  font-size: 13.5px;
+  color: var(--muted);
+  letter-spacing: .01em;
+}
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+.hero-visual {
+  position: relative;
+  width: 100%;
+  min-height: clamp(340px, 50vh, 650px);
+  display: grid;
+  place-items: center;
+}
+
+/* Atmospheric wrapper for the 3D coffee cup — replaces the old flat white
+   canvas backdrop with a soft radial aura (::before) and a grounded contact
+   shadow (::after) so the cup dissolves into the hero instead of sitting on
+   a visible rectangle. See --coffee-scene-* tokens above for the two themes. */
+.coffee-scene {
+  position: relative;
+  width: min(42vw, 610px);
+  min-width: 420px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.coffee-scene::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(
+      circle at 48% 43%,
+      var(--coffee-scene-glow-core) 0%,
+      var(--coffee-scene-glow-warm) 31%,
+      var(--coffee-scene-rim-soft) 47%,
+      var(--coffee-scene-glow-green) 58%,
+      transparent 74%
+    );
+  filter: blur(14px);
+  opacity: .95;
+  pointer-events: none;
+  z-index: 0;
+  transition: background .45s ease, opacity .45s ease, filter .45s ease;
+}
+
+.coffee-scene::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  width: 55%;
+  height: 10%;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: var(--coffee-scene-shadow);
+  filter: blur(25px);
+  opacity: .8;
+  pointer-events: none;
+  z-index: 1;
+  transition: background .45s ease, opacity .45s ease, filter .45s ease;
+}
+
+.orb {
+  position: relative;
+  z-index: 2;
+  width: min(74%, 380px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #F7EEE1, #E7D8C2 46%, #C6AF90 100%);
+  box-shadow: inset -22px -32px 70px rgba(120, 80, 40, .28), var(--shadow-lg);
+  display: grid;
+  place-items: center;
+  animation: floaty 7s ease-in-out infinite;
+  pointer-events: none;
+}
+.orb span {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(70px, 13vw, 150px);
+  font-weight: 700;
+  color: rgba(90, 55, 30, .5);
+  line-height: 1;
+}
+
+.coffee-scene__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(8px) scale(.985);
+  transition: opacity .7s ease, transform .9s cubic-bezier(.22, 1, .36, 1);
+}
+.coffee-scene__canvas.is-loaded {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.coffee-scene canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+  outline: none;
+}
+
+@media (max-width: 1100px) {
+  .coffee-scene {
+    width: min(46vw, 520px);
+    min-width: 340px;
+  }
+}
+
+@media (max-width: 760px) {
+  .coffee-scene {
+    width: min(92vw, 440px);
+    min-width: 0;
+    margin-inline: auto;
+  }
+
+  .coffee-scene::before {
+    width: 94%;
+    height: 94%;
+    filter: blur(12px);
+  }
+
+  .coffee-scene::after {
+    bottom: 15%;
+    width: 58%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coffee-scene__canvas {
+    transform: none;
+    transition: opacity .3s ease;
+  }
+  .orb {
+    animation: none;
+  }
 }
 
 /* Menu */

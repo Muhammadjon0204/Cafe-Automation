@@ -1,10 +1,13 @@
 using System.Text;
+using Cafe.Api.Hubs;
 using Cafe.Api.Middleware;
+using Cafe.Api.Realtime;
 using Cafe.Api.Services;
 using Cafe.Application;
 using Cafe.Application.Common;
 using Cafe.Application.DTOs.Auth;
 using Cafe.Application.Interfaces.Identity;
+using Cafe.Application.Interfaces.Services;
 using Cafe.Domain.Constants;
 using Cafe.Infrastructure;
 using Cafe.Infrastructure.Identity;
@@ -18,11 +21,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+// Implementation lives in Cafe.Api (SignalR is a web concern, Application stays
+// framework-agnostic) — same reasoning/pattern as ICurrentUserService above.
+builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
 
@@ -43,6 +50,23 @@ builder.Services.AddAuthentication(options =>
             IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(jwtSettings.Secret)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
+        };
+
+        // Browsers can't set an Authorization header on the WebSocket handshake SignalR
+        // uses, so its JS client sends the token as an "access_token" query param instead
+        // (see @microsoft/signalr's accessTokenFactory). Only honored under /hubs — every
+        // other endpoint still requires the normal Authorization header.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -133,5 +157,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<OrdersHub>("/hubs/orders").RequireAuthorization();
 
 app.Run();

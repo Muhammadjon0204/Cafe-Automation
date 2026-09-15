@@ -9,6 +9,8 @@ import { StaffPage } from '../pages/StaffPage';
 import { ReportsPage } from '../pages/ReportsPage';
 import { ReservationsPage } from '../pages/ReservationsPage';
 import { TablesPage } from '../pages/TablesPage';
+import { KitchenPage } from '../pages/KitchenPage';
+import { WaiterPage } from '../pages/WaiterPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ROUTES } from './routePaths';
@@ -33,6 +35,12 @@ export function AppRoutes() {
           </Route>
           <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.reports} />}>
             <Route path="reports" element={<ReportsPage />} />
+          </Route>
+          <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.kitchen} />}>
+            <Route path="kitchen" element={<KitchenPage />} />
+          </Route>
+          <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.waiter} />}>
+            <Route path="waiter" element={<WaiterPage />} />
           </Route>
           <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.settings} />}>
             <Route path="settings" element={<SettingsPage />} />

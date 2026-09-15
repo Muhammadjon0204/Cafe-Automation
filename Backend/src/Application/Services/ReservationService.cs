@@ -15,13 +15,27 @@ public class ReservationService : IReservationService
     private readonly ICafeTableRepository _tableRepository;
     private readonly ICustomerRepository _customerRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IRealtimeNotifier _realtimeNotifier;
 
-    public ReservationService(IReservationRepository reservationRepository, ICafeTableRepository tableRepository, ICustomerRepository customerRepository, IUnitOfWork unitOfWork)
+    public ReservationService(IReservationRepository reservationRepository, ICafeTableRepository tableRepository, ICustomerRepository customerRepository, IUnitOfWork unitOfWork, IRealtimeNotifier realtimeNotifier)
     {
         _reservationRepository = reservationRepository;
         _tableRepository = tableRepository;
         _customerRepository = customerRepository;
         _unitOfWork = unitOfWork;
+        _realtimeNotifier = realtimeNotifier;
+    }
+
+    // See OrderService.NotifyOrderChangedAsync — same best-effort reasoning.
+    private async Task NotifyTableChangedAsync(int tableId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _realtimeNotifier.TableChangedAsync(tableId, cancellationToken);
+        }
+        catch
+        {
+        }
     }
 
     public async Task<Result<PagedResult<GetReservationDto>>> GetAllAsync(ReservationFilterDto filter, CancellationToken cancellationToken = default)
@@ -72,14 +86,19 @@ public class ReservationService : IReservationService
 
         await _reservationRepository.AddAsync(reservation, cancellationToken);
 
-        if (table != null && table.Status == TableStatus.Free)
+        var tableStatusChanged = table != null && table.Status == TableStatus.Free;
+        if (tableStatusChanged)
         {
-            table.Status = TableStatus.Reserved;
+            table!.Status = TableStatus.Reserved;
             table.UpdatedAt = DateTime.UtcNow;
             _tableRepository.Update(table);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        if (tableStatusChanged)
+        {
+            await NotifyTableChangedAsync(table!.Id, cancellationToken);
+        }
         return Result<GetReservationDto>.Success(MapToDto(reservation), "Reservation created.");
     }
 
@@ -166,6 +185,10 @@ public class ReservationService : IReservationService
 
         _reservationRepository.Update(reservation);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        if (table != null)
+        {
+            await NotifyTableChangedAsync(table.Id, cancellationToken);
+        }
         return Result<GetReservationDto>.Success(MapToDto(reservation), "Reservation status updated.");
     }
 

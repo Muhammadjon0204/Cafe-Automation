@@ -158,6 +158,28 @@ export function TableIcon() {
   );
 }
 
+export function KitchenIcon() {
+  return (
+    <svg {...commonProps}>
+      <path d="M5 11.5a7 7 0 0 1 14 0Z" />
+      <line x1="4" y1="11.5" x2="20" y2="11.5" />
+      <line x1="4" y1="20.5" x2="20" y2="20.5" />
+      <line x1="5" y1="15.5" x2="19" y2="15.5" />
+    </svg>
+  );
+}
+
+export function WaiterIcon() {
+  return (
+    <svg {...commonProps}>
+      <ellipse cx="12" cy="15.5" rx="9" ry="2.3" />
+      <path d="M12 3.5v8" />
+      <circle cx="12" cy="3.5" r="1.6" />
+      <path d="M7 15.5c0-2.8 2.2-5 5-5s5 2.2 5 5" />
+    </svg>
+  );
+}
+
 export function WarningIcon() {
   return (
     <svg {...commonProps}>

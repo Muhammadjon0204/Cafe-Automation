@@ -21,6 +21,13 @@ export default defineConfig({
         target: 'http://localhost:5082',
         changeOrigin: true,
       },
+      // SignalR (OrdersHub) — ws:true so the proxy upgrades the WebSocket
+      // handshake instead of trying to proxy it as a plain HTTP request.
+      '/hubs': {
+        target: 'http://localhost:5082',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   optimizeDeps: {

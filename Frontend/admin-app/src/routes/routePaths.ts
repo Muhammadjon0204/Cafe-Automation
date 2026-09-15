@@ -7,5 +7,7 @@ export const ROUTES = {
   reports: '/reports',
   reservations: '/reservations',
   tables: '/tables',
+  kitchen: '/kitchen',
+  waiter: '/waiter',
   settings: '/settings',
 } as const;

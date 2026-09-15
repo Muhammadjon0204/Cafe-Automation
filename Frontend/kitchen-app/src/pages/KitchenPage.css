@@ -1,0 +1,150 @@
+.kitchen-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.kitchen-page-title h1 {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+.kitchen-page-title p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.kitchen-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 1fr);
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+/* Column chrome — same rules as admin-app's OrdersPage.css .kanban-column*
+   (kept in sync by hand; this is the one other place that uses them). */
+.kanban-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  transition: border-color .15s ease, background .15s ease;
+}
+.kanban-column.is-drag-over {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-bg-2));
+}
+.kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  color: var(--color-fg);
+  border-bottom: 1px solid var(--color-border);
+}
+.kanban-column-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: var(--color-card);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.kanban-column-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  min-height: 120px;
+}
+.kanban-empty {
+  margin: var(--space-3) 0;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+/* A plain, undecorated card by default — the left border is the only accent,
+   reserved for tickets that have been waiting a while, so a calm column stays
+   calm and a late one is unmistakable without reaching for red/green noise. */
+.kitchen-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border);
+  border-radius: 12px;
+  padding: var(--space-3);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.kitchen-card:active {
+  cursor: grabbing;
+}
+.kitchen-card.is-warn {
+  border-left-color: var(--color-warn);
+}
+.kitchen-card.is-late {
+  border-left-color: var(--color-danger);
+}
+
+.kitchen-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-fg);
+}
+.kitchen-card-time {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.kitchen-card.is-warn .kitchen-card-time {
+  color: var(--color-warn);
+}
+.kitchen-card.is-late .kitchen-card-time {
+  color: var(--color-danger);
+}
+
+.kitchen-card-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+  line-height: var(--line-height-normal);
+}
+.kitchen-card-item-qty {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+.kitchen-card-item-note {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.kitchen-card-note {
+  margin: 0;
+  padding: var(--space-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-warn);
+  background: var(--color-warn-bg);
+  border-radius: 8px;
+}

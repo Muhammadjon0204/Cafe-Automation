@@ -11,3 +11,6 @@ export { STAFF_ROLES, normalizeRoleClaim } from './auth/roles';
 export type { StaffRole } from './auth/roles';
 
 export type { Lang } from './i18n/types';
+
+export { useRealtimeSync } from './realtime/useRealtimeSync';
+export type { OrderChangedPayload, TableChangedPayload, RealtimeSyncOptions } from './realtime/useRealtimeSync';

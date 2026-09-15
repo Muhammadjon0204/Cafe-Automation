@@ -1,0 +1,127 @@
+.waiter-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.waiter-page-title h1 {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+.waiter-page-title p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.waiter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--space-4);
+}
+
+.waiter-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+/* The one state that needs to grab attention across a busy floor — a soft accent
+   glow rather than a loud color, matching the project's muted-palette convention. */
+.waiter-card.is-ready {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft), var(--shadow-md);
+}
+
+.waiter-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.waiter-card-table {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-fg);
+}
+
+.waiter-card-status-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--color-muted);
+  background: var(--color-bg-2);
+}
+.waiter-card-status-badge.is-occupied {
+  color: var(--color-accent-2);
+  background: var(--color-accent-2-bg);
+}
+.waiter-card-status-badge.is-reserved {
+  color: var(--color-info);
+  background: var(--color-info-bg);
+}
+.waiter-card-status-badge.is-cleaning {
+  color: var(--color-muted);
+  background: var(--color-bg-2);
+}
+
+.waiter-card-items {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+  line-height: var(--line-height-normal);
+}
+
+.waiter-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.waiter-card-empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.waiter-card-note {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-warn);
+}
+
+.waiter-card-serve-btn {
+  margin-top: var(--space-1);
+  font: inherit;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  border: none;
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.waiter-card-serve-btn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+.waiter-card-serve-btn:disabled {
+  opacity: .6;
+  cursor: default;
+}

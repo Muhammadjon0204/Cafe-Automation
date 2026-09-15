@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>coffee_cup.glb inspector</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #2a2a2a; overflow: hidden; font-family: system-ui, sans-serif; }
+  canvas { display: block; }
+  #panel {
+    position: fixed; top: 12px; left: 12px; z-index: 10;
+    background: rgba(0,0,0,.72); color: #eee; padding: 14px 16px;
+    border-radius: 8px; font-size: 13px; line-height: 1.6; width: 300px;
+  }
+  #panel h1 { font-size: 14px; margin: 0 0 8px; }
+  #panel label { display: block; margin-top: 8px; }
+  #panel input[type=range] { width: 100%; }
+  #panel #readout { white-space: pre-wrap; font-family: monospace; font-size: 11px; margin-top: 10px; color: #9f9; }
+  #panel button { margin-top: 8px; padding: 6px 10px; cursor: pointer; }
+  #legend span { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>coffee_cup.glb — raw inspector</h1>
+  <div id="legend">
+    <span style="background:red"></span>X &nbsp;
+    <span style="background:limegreen"></span>Y (glTF "up") &nbsp;
+    <span style="background:royalblue"></span>Z
+  </div>
+  <label>Rotate X: <span id="rxVal">0</span>°
+    <input id="rx" type="range" min="-180" max="180" step="1" value="0" />
+  </label>
+  <label>Rotate Y: <span id="ryVal">0</span>°
+    <input id="ry" type="range" min="-180" max="180" step="1" value="0" />
+  </label>
+  <label>Rotate Z: <span id="rzVal">0</span>°
+    <input id="rz" type="range" min="-180" max="180" step="1" value="0" />
+  </label>
+  <label>Scale: <span id="scaleVal">1.0</span>
+    <input id="scale" type="range" min="0.05" max="3" step="0.01" value="1" />
+  </label>
+  <button id="reset">Reset view</button>
+  <div id="readout">loading…</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const readout = document.getElementById('readout');
+readout.textContent = 'three.js module loaded, starting scene…';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2a2a);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 1000);
+camera.position.set(3, 3, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+
+scene.add(new THREE.AxesHelper(2));
+scene.add(new THREE.GridHelper(10, 20, 0x555555, 0x333333));
+
+const key = new THREE.DirectionalLight(0xffffff, 2);
+key.position.set(3, 5, 4);
+scene.add(key);
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+const pivot = new THREE.Group();
+scene.add(pivot);
+
+new GLTFLoader().load(
+  '/models/coffee_cup.glb',
+  (gltf) => {
+    pivot.add(gltf.scene);
+    let meshCount = 0;
+    gltf.scene.traverse((child) => {
+      if (child.isMesh) meshCount++;
+    });
+    const box = new THREE.Box3().setFromObject(pivot);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    readout.textContent =
+      `LOADED OK — meshes found: ${meshCount}\n` +
+      `combined bbox size: x=${size.x.toFixed(2)} y=${size.y.toFixed(2)} z=${size.z.toFixed(2)}\n` +
+      `combined bbox center: ${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}\n` +
+      `\nDrag the sliders above (not the 3D view)\nto rotate the model itself, until it\nsits naturally on the grid — opening\nfacing up, base flat on the grid.\nThen report the X/Y/Z numbers shown.`;
+  },
+  undefined,
+  (err) => {
+    readout.textContent = 'FAILED TO LOAD /models/coffee_cup.glb:\n' + err.message;
+    console.error(err);
+  },
+);
+
+const rx = document.getElementById('rx');
+const ry = document.getElementById('ry');
+const rz = document.getElementById('rz');
+const scaleEl = document.getElementById('scale');
+const rxVal = document.getElementById('rxVal');
+const ryVal = document.getElementById('ryVal');
+const rzVal = document.getElementById('rzVal');
+const scaleVal = document.getElementById('scaleVal');
+
+function applyTransform() {
+  pivot.rotation.set(
+    THREE.MathUtils.degToRad(+rx.value),
+    THREE.MathUtils.degToRad(+ry.value),
+    THREE.MathUtils.degToRad(+rz.value),
+  );
+  pivot.scale.setScalar(+scaleEl.value);
+  rxVal.textContent = rx.value;
+  ryVal.textContent = ry.value;
+  rzVal.textContent = rz.value;
+  scaleVal.textContent = (+scaleEl.value).toFixed(2);
+}
+[rx, ry, rz, scaleEl].forEach((el) => el.addEventListener('input', applyTransform));
+
+document.getElementById('reset').addEventListener('click', () => {
+  rx.value = ry.value = rz.value = 0;
+  scaleEl.value = 1;
+  applyTransform();
+  camera.position.set(3, 3, 5);
+  controls.target.set(0, 0, 0);
+});
+
+applyTransform();
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+function tick() {
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>

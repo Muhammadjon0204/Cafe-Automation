@@ -24,6 +24,7 @@ public class OrderService : IOrderService
     private readonly ITipRepository _tipRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IRealtimeNotifier _realtimeNotifier;
 
     public OrderService(
         IOrderRepository orderRepository,
@@ -36,7 +37,8 @@ public class OrderService : IOrderService
         IDiscountRepository discountRepository,
         ITipRepository tipRepository,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IRealtimeNotifier realtimeNotifier)
     {
         _orderRepository = orderRepository;
         _orderItemRepository = orderItemRepository;
@@ -49,6 +51,28 @@ public class OrderService : IOrderService
         _tipRepository = tipRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _realtimeNotifier = realtimeNotifier;
+    }
+
+    // Fire-and-forget from the caller's perspective (awaited, but its failure must never
+    // fail the request that already committed — a missed live-update is far cheaper than
+    // a 500 on a successful order change) — every mutating method below calls this once
+    // right after SaveChangesAsync.
+    private async Task NotifyOrderChangedAsync(Order order, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _realtimeNotifier.OrderChangedAsync(order.Id, order.CafeTableId, cancellationToken);
+            if (order.CafeTableId.HasValue)
+            {
+                await _realtimeNotifier.TableChangedAsync(order.CafeTableId.Value, cancellationToken);
+            }
+        }
+        catch
+        {
+            // Best-effort broadcast — a disconnected hub/client must not surface as a
+            // failure of the order operation that already succeeded and was saved.
+        }
     }
 
     public async Task<Result<PagedResult<GetOrderDto>>> GetAllAsync(OrderFilterDto filter, CancellationToken cancellationToken = default)
@@ -119,6 +143,7 @@ public class OrderService : IOrderService
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order, cancellationToken);
         return Result<GetOrderDto>.Success(MapToDto(order), "Order created.");
     }
 
@@ -170,6 +195,7 @@ public class OrderService : IOrderService
         await RecalculateOrderTotalsAsync(order, cancellationToken);
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order, cancellationToken);
 
         return Result<GetOrderDto>.Success(MapToDto(order), "Order item added.");
     }
@@ -227,6 +253,7 @@ public class OrderService : IOrderService
         await RecalculateOrderTotalsAsync(order, cancellationToken);
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order, cancellationToken);
 
         return Result<GetOrderDto>.Success(MapToDto(order), "Order item updated.");
     }
@@ -272,6 +299,7 @@ public class OrderService : IOrderService
         await RecalculateOrderTotalsAsync(order, cancellationToken);
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order, cancellationToken);
 
         return Result<GetOrderDto>.Success(MapToDto(order), "Order item removed.");
     }
@@ -325,6 +353,7 @@ public class OrderService : IOrderService
 
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order, cancellationToken);
         return Result<GetOrderDto>.Success(MapToDto(order), "Order status updated.");
     }
 
@@ -362,6 +391,7 @@ public class OrderService : IOrderService
         await ReleaseTableAsync(order, cancellationToken);
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order, cancellationToken);
         return Result<GetOrderDto>.Success(MapToDto(order), "Order cancelled.");
     }
 
@@ -397,6 +427,7 @@ public class OrderService : IOrderService
         await ReleaseTableAsync(order, cancellationToken);
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order, cancellationToken);
         return Result<GetOrderDto>.Success(MapToDto(order), "Order closed.");
     }
 
