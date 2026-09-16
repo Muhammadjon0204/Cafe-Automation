@@ -21,6 +21,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.CafeTableId).IsRequired(false);
         builder.Property(x => x.WaiterId).IsRequired(false);
         builder.Property(x => x.CreatedByStaffMemberId).IsRequired(false);
+        builder.Property(x => x.ReservationId).IsRequired(false);
+        builder.Property(x => x.SendToKitchenAt).IsRequired(false);
         builder.Property(x => x.SubTotal).IsRequired().HasPrecision(18, 2);
         builder.Property(x => x.DiscountAmount).IsRequired().HasPrecision(18, 2);
         builder.Property(x => x.TipAmount).IsRequired().HasPrecision(18, 2);
@@ -57,6 +59,11 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasForeignKey(x => x.CreatedByStaffMemberId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.Reservation)
+            .WithMany()
+            .HasForeignKey(x => x.ReservationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(x => x.Items)
             .WithOne(x => x.Order)
             .HasForeignKey(x => x.OrderId)
@@ -90,6 +97,26 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(x => x.WaiterId);
         builder.HasIndex(x => x.CreatedByStaffMemberId);
         builder.HasIndex(x => x.IsDeleted);
+        builder.HasIndex(x => new { x.Status, x.SendToKitchenAt });
+
+        // At most one non-cancelled order per reservation - allows a fresh pre-order to be
+        // created after an earlier one for the same reservation was cancelled (Status = 7).
+        builder.HasIndex(x => x.ReservationId)
+            .IsUnique()
+            .HasDatabaseName("IX_Orders_ActiveByReservation")
+            .HasFilter("\"ReservationId\" IS NOT NULL AND \"Status\" != 7 AND \"IsDeleted\" = false");
+
+        // Concurrency guard for TZ "open table" race (two waiters, same table, near-simultaneous
+        // requests): at most one actively-occupying order per table. Status 8 (Scheduled) is
+        // deliberately excluded - a future pre-order must not block the table from being opened
+        // for a walk-in today; it only starts competing for the table once promoted out of
+        // Scheduled. This is the last line of defense behind OrderService.OpenTableAsync's
+        // Serializable transaction (see IUnitOfWork.ExecuteInTransactionAsync) - a violation here
+        // surfaces as Postgres 23505 and is translated to 409 by ExceptionHandlingMiddleware.
+        builder.HasIndex(x => x.CafeTableId)
+            .IsUnique()
+            .HasDatabaseName("IX_Orders_ActiveByTable")
+            .HasFilter("\"CafeTableId\" IS NOT NULL AND \"Status\" NOT IN (6,7,8) AND \"IsDeleted\" = false");
 
         builder.HasQueryFilter(x => !x.IsDeleted);
     }

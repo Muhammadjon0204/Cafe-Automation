@@ -42,6 +42,14 @@
   box-shadow: 0 0 0 3px var(--color-accent-soft), var(--shadow-md);
 }
 
+.waiter-card.is-clickable {
+  cursor: pointer;
+}
+.waiter-card.is-clickable:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+}
+
 .waiter-card-header {
   display: flex;
   align-items: center;

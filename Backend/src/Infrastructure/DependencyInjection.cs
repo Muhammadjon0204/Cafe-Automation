@@ -59,6 +59,8 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>();
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<KitchenTimingSettings>(configuration.GetSection(KitchenTimingSettings.SectionName));
+        services.Configure<TableAvailabilitySettings>(configuration.GetSection(TableAvailabilitySettings.SectionName));
 
         var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
         if (string.IsNullOrWhiteSpace(jwtSettings.Secret))

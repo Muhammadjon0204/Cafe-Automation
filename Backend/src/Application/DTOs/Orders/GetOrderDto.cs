@@ -44,6 +44,10 @@ public class GetOrderDto
 
     public string? Note { get; set; }
 
+    public int? ReservationId { get; set; }
+
+    public DateTime? SendToKitchenAt { get; set; }
+
     public List<GetOrderItemDto> Items { get; set; } = new List<GetOrderItemDto>();
 
     public DateTime CreatedAt { get; set; }

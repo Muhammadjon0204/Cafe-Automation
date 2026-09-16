@@ -14,13 +14,42 @@ public class CafeTableService : ICafeTableService
     private readonly IZoneRepository _zoneRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotifier _realtimeNotifier;
+    private readonly ITableAvailabilityService _tableAvailabilityService;
 
-    public CafeTableService(ICafeTableRepository tableRepository, IZoneRepository zoneRepository, IUnitOfWork unitOfWork, IRealtimeNotifier realtimeNotifier)
+    public CafeTableService(
+        ICafeTableRepository tableRepository,
+        IZoneRepository zoneRepository,
+        IUnitOfWork unitOfWork,
+        IRealtimeNotifier realtimeNotifier,
+        ITableAvailabilityService tableAvailabilityService)
     {
         _tableRepository = tableRepository;
         _zoneRepository = zoneRepository;
         _unitOfWork = unitOfWork;
         _realtimeNotifier = realtimeNotifier;
+        _tableAvailabilityService = tableAvailabilityService;
+    }
+
+    // Same check OrderService.OpenTableAsync uses (TZ 3.2), exposed read-only so the UI can
+    // warn before the waiter even clicks "open table".
+    public async Task<Result<TableAvailabilityDto>> GetAvailabilityAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var table = await _tableRepository.GetByIdAsync(id, cancellationToken);
+        if (table == null || table.IsDeleted)
+        {
+            return Result<TableAvailabilityDto>.Failure("Table not found.");
+        }
+
+        var availability = await _tableAvailabilityService.CheckWalkInAvailabilityAsync(id, DateTime.UtcNow, cancellationToken);
+        return Result<TableAvailabilityDto>.Success(new TableAvailabilityDto
+        {
+            CanOpenFreely = availability.CanOpenFreely,
+            RequiresWarning = availability.RequiresWarning,
+            IsBlocked = availability.IsBlocked,
+            NearestReservationAt = availability.NearestReservation?.ReservedAt,
+            MinutesUntilReservation = availability.MinutesUntilReservation,
+            Message = availability.Message
+        });
     }
 
     // See OrderService.NotifyOrderChangedAsync — same best-effort reasoning.

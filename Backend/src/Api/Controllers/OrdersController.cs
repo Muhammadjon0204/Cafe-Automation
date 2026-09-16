@@ -42,6 +42,27 @@ public class OrdersController : ControllerBase
         return result.ToActionResult();
     }
 
+    // Walk-in seating with the TZ 3.1/3.2 concurrency + reservation-proximity checks -
+    // distinct from Create above, which has neither (Create is also used for TakeAway/
+    // Delivery orders that never touch a table at all).
+    [HttpPost("open-table")]
+    [Authorize(Roles = RolePolicies.AdminManagerWaiter)]
+    public async Task<IActionResult> OpenTable([FromBody] OpenTableDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _orderService.OpenTableAsync(dto, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    // Manual promotion of a Scheduled pre-order (guest arrived early/on time) - shares
+    // OrderService.SendToKitchenAsync with KitchenPromotionBackgroundService's automatic path.
+    [HttpPost("{id:int}/send-to-kitchen")]
+    [Authorize(Roles = RolePolicies.AdminManagerWaiter)]
+    public async Task<IActionResult> SendToKitchen(int id, CancellationToken cancellationToken)
+    {
+        var result = await _orderService.SendToKitchenAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpPost("{id:int}/items")]
     [Authorize(Roles = RolePolicies.AdminManagerWaiter)]
     public async Task<IActionResult> AddItem(int id, [FromBody] AddOrderItemDto dto, CancellationToken cancellationToken)

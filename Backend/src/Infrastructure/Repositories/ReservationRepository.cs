@@ -77,4 +77,15 @@ public class ReservationRepository : IReservationRepository
             (x.ReservedUntil ?? x.ReservedAt) > bufferedStart,
             cancellationToken);
     }
+
+    public Task<Reservation?> GetNearestUpcomingActiveAsync(int cafeTableId, DateTime asOfUtc, CancellationToken cancellationToken = default)
+    {
+        return _context.Reservations
+            .Where(x =>
+                x.CafeTableId == cafeTableId &&
+                (x.Status == ReservationStatus.Pending || x.Status == ReservationStatus.Confirmed) &&
+                (x.ReservedUntil ?? x.ReservedAt) >= asOfUtc)
+            .OrderBy(x => x.ReservedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

@@ -1,4 +1,5 @@
 using Cafe.Application.Common;
+using Cafe.Application.DTOs.Orders;
 using Cafe.Application.DTOs.Reservations;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
@@ -14,16 +15,43 @@ public class ReservationService : IReservationService
     private readonly IReservationRepository _reservationRepository;
     private readonly ICafeTableRepository _tableRepository;
     private readonly ICustomerRepository _customerRepository;
+    private readonly IOrderRepository _orderRepository;
+    private readonly IOrderService _orderService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotifier _realtimeNotifier;
 
-    public ReservationService(IReservationRepository reservationRepository, ICafeTableRepository tableRepository, ICustomerRepository customerRepository, IUnitOfWork unitOfWork, IRealtimeNotifier realtimeNotifier)
+    public ReservationService(
+        IReservationRepository reservationRepository,
+        ICafeTableRepository tableRepository,
+        ICustomerRepository customerRepository,
+        IOrderRepository orderRepository,
+        IOrderService orderService,
+        IUnitOfWork unitOfWork,
+        IRealtimeNotifier realtimeNotifier)
     {
         _reservationRepository = reservationRepository;
         _tableRepository = tableRepository;
         _customerRepository = customerRepository;
+        _orderRepository = orderRepository;
+        _orderService = orderService;
         _unitOfWork = unitOfWork;
         _realtimeNotifier = realtimeNotifier;
+    }
+
+    // Shared by UpdateStatusAsync and DeleteAsync: a reservation ending up Cancelled cancels
+    // its linked pre-order too (TZ 4.1.6), if that order hasn't already reached a terminal
+    // state. Reuses OrderService.CancelAsync rather than reimplementing table-release/item-
+    // cancellation/totals here - that also means an already-promoted (non-Scheduled) order
+    // still gets OrderService's existing "can't cancel a paid order" guard for free.
+    private async Task CancelLinkedOrderAsync(int reservationId, string reason, CancellationToken cancellationToken)
+    {
+        var linkedOrder = await _orderRepository.GetByReservationIdAsync(reservationId, cancellationToken);
+        if (linkedOrder == null || linkedOrder.Status == OrderStatus.Cancelled || linkedOrder.Status == OrderStatus.Closed)
+        {
+            return;
+        }
+
+        await _orderService.CancelAsync(linkedOrder.Id, new CancelOrderDto { Reason = reason }, cancellationToken);
     }
 
     // See OrderService.NotifyOrderChangedAsync — same best-effort reasoning.
@@ -124,6 +152,8 @@ public class ReservationService : IReservationService
             return Result<GetReservationDto>.Failure(validation.Message, validation.Errors);
         }
 
+        var originalReservedAt = reservation.ReservedAt;
+
         reservation.CafeTableId = dto.CafeTableId;
         reservation.CafeTable = await _tableRepository.GetByIdAsync(dto.CafeTableId, cancellationToken);
         reservation.CustomerId = dto.CustomerId;
@@ -138,6 +168,20 @@ public class ReservationService : IReservationService
 
         _reservationRepository.Update(reservation);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // TZ 4.3: a rescheduled reservation with a not-yet-promoted pre-order needs its
+        // SendToKitchenAt recomputed against the new time. Delegates to OrderService (which
+        // owns the formula + the "already due -> promote now" edge case) rather than
+        // reimplementing that branching here.
+        if (reservation.ReservedAt != originalReservedAt)
+        {
+            var linkedOrder = await _orderRepository.GetByReservationIdAsync(id, cancellationToken);
+            if (linkedOrder != null && linkedOrder.Status == OrderStatus.Scheduled)
+            {
+                await _orderService.RecalculateSendToKitchenTimingAsync(linkedOrder.Id, cancellationToken);
+            }
+        }
+
         return Result<GetReservationDto>.Success(MapToDto(reservation), "Reservation updated.");
     }
 
@@ -189,6 +233,12 @@ public class ReservationService : IReservationService
         {
             await NotifyTableChangedAsync(table.Id, cancellationToken);
         }
+
+        if (dto.Status == ReservationStatus.Cancelled)
+        {
+            await CancelLinkedOrderAsync(id, "Reservation cancelled.", cancellationToken);
+        }
+
         return Result<GetReservationDto>.Success(MapToDto(reservation), "Reservation status updated.");
     }
 
@@ -210,6 +260,12 @@ public class ReservationService : IReservationService
         reservation.UpdatedAt = DateTime.UtcNow;
         _reservationRepository.Update(reservation);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (reservation.Status == ReservationStatus.Cancelled)
+        {
+            await CancelLinkedOrderAsync(id, "Reservation deleted.", cancellationToken);
+        }
+
         return Result.Success("Reservation deleted.");
     }
 

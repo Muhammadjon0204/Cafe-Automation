@@ -34,6 +34,16 @@ public class CafeTablesController : ControllerBase
         return result.ToActionResult();
     }
 
+    // Matches the sibling GET endpoints above in staying anonymous (booking-widget parity) -
+    // flagged in the plan as a judgment call, easy to tighten to staff-only later.
+    [HttpGet("{id:int}/availability")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAvailability(int id, CancellationToken cancellationToken)
+    {
+        var result = await _cafeTableService.GetAvailabilityAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpPost]
     [Authorize(Roles = RolePolicies.AdminManager)]
     public async Task<IActionResult> Create([FromBody] CreateCafeTableDto dto, CancellationToken cancellationToken)

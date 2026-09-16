@@ -11,10 +11,12 @@ namespace Cafe.Api.Controllers;
 public class ReservationsController : ControllerBase
 {
     private readonly IReservationService _reservationService;
+    private readonly IOrderService _orderService;
 
-    public ReservationsController(IReservationService reservationService)
+    public ReservationsController(IReservationService reservationService, IOrderService orderService)
     {
         _reservationService = reservationService;
+        _orderService = orderService;
     }
 
     [HttpGet]
@@ -64,6 +66,24 @@ public class ReservationsController : ControllerBase
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await _reservationService.DeleteAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    // Item mutations on the returned order go through the existing
+    // POST/PUT/DELETE /api/orders/{id}/items endpoints - not duplicated here (see plan).
+    [HttpPost("{id:int}/pre-order")]
+    [Authorize(Roles = RolePolicies.AdminManagerWaiter)]
+    public async Task<IActionResult> CreatePreOrder(int id, CancellationToken cancellationToken)
+    {
+        var result = await _orderService.CreatePreOrderAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpGet("{id:int}/pre-order")]
+    [Authorize(Roles = RolePolicies.AdminManagerWaiter)]
+    public async Task<IActionResult> GetPreOrder(int id, CancellationToken cancellationToken)
+    {
+        var result = await _orderService.GetPreOrderAsync(id, cancellationToken);
         return result.ToActionResult();
     }
 }

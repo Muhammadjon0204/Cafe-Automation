@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getOrders, updateOrderStatus, type Order } from '../api/ordersApi';
+import { getOrders, openTable, updateOrderStatus, type Order } from '../api/ordersApi';
 import { getTables } from '../api/tablesApi';
 import { minutesAgoLabel, orderItemsLabel } from '../domain/orders';
+import { useAuth } from '../auth/AuthContext';
+import { DishPickerModal } from './DishPickerModal';
 import { ErrorRetry } from '../components/ErrorRetry';
 import { Skeleton } from '../components/Skeleton';
 import { pushToast } from '../components/toast/toastBus';
@@ -14,6 +16,8 @@ import './WaiterPage.css';
 // shell. Keep the two in sync by hand if either changes.
 const TABLES_QUERY_KEY = ['tables', 'waiter'];
 const ORDERS_QUERY_KEY = ['orders', 'waiter'];
+const FREE_STATUS = 1;
+const OCCUPIED_STATUS = 2;
 const READY_STATUS = 4;
 const SERVED_STATUS = 5;
 const PAID_STATUS = 3;
@@ -31,6 +35,8 @@ const TABLE_STATUS_META: Record<number, { label: string; className: string }> = 
 // table's order instead, which is the intended oversight behavior for those roles.
 export function WaiterPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [picker, setPicker] = useState<{ tableNumber: number; orderId: number } | null>(null);
 
   const tablesQuery = useQuery({ queryKey: TABLES_QUERY_KEY, queryFn: getTables });
   // Realtime hub (Shell) is the primary update path for both queries below — the
@@ -84,6 +90,38 @@ export function WaiterPage() {
     },
   });
 
+  // A 409 here (backend's partial unique index / serializable transaction - see
+  // OrderService.OpenTableAsync) means another waiter opened this table first; the
+  // toast + refetch below is the project's standing 409 convention.
+  const openTableMutation = useMutation({
+    mutationFn: (tableId: number) => openTable({ cafeTableId: tableId, waiterId: user?.staffMemberId ?? undefined }),
+    onSuccess: (result) => {
+      setPicker({ tableNumber: result.order.tableNumber ?? 0, orderId: result.order.id });
+      if (result.warning) {
+        pushToast(result.warning, { variant: 'info' });
+      }
+      void queryClient.invalidateQueries({ queryKey: TABLES_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
+    },
+    onError: (error) => {
+      pushToast(errorMessage(error, 'Не удалось открыть стол.'), { variant: 'error' });
+      void queryClient.invalidateQueries({ queryKey: TABLES_QUERY_KEY });
+    },
+  });
+
+  function handleCardClick(tableId: number, tableNumber: number, status: number, order: Order | null) {
+    if (status === FREE_STATUS) {
+      if (!openTableMutation.isPending) {
+        openTableMutation.mutate(tableId);
+      }
+      return;
+    }
+
+    if (status === OCCUPIED_STATUS && order) {
+      setPicker({ tableNumber, orderId: order.id });
+    }
+  }
+
   if (tablesQuery.isLoading || ordersQuery.isLoading) {
     return (
       <div className="waiter-page">
@@ -121,8 +159,16 @@ export function WaiterPage() {
             const statusMeta = TABLE_STATUS_META[table.status] ?? { label: '—', className: '' };
             const isReady = order?.status === READY_STATUS;
             const isServedUnpaid = order?.status === SERVED_STATUS && order.paymentStatus !== PAID_STATUS;
+            const isOpening = openTableMutation.isPending && openTableMutation.variables === table.id;
+            const isClickable = table.status === FREE_STATUS || (table.status === OCCUPIED_STATUS && order != null);
             return (
-              <div className={`waiter-card ${statusMeta.className} ${isReady ? 'is-ready' : ''}`} key={table.id}>
+              <div
+                className={`waiter-card ${statusMeta.className} ${isReady ? 'is-ready' : ''} ${isClickable ? 'is-clickable' : ''}`}
+                key={table.id}
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                onClick={isClickable ? () => handleCardClick(table.id, table.tableNumber, table.status, order) : undefined}
+              >
                 <div className="waiter-card-header">
                   <span className="waiter-card-table">Стол {table.tableNumber}</span>
                   <span className={`waiter-card-status-badge ${statusMeta.className}`}>{statusMeta.label}</span>
@@ -141,12 +187,17 @@ export function WaiterPage() {
                         type="button"
                         className="waiter-card-serve-btn"
                         disabled={serveMutation.isPending && serveMutation.variables === order.id}
-                        onClick={() => serveMutation.mutate(order.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          serveMutation.mutate(order.id);
+                        }}
                       >
                         Подать
                       </button>
                     )}
                   </>
+                ) : table.status === FREE_STATUS ? (
+                  <p className="waiter-card-empty">{table.seatsCount} мест · {isOpening ? 'Открываем...' : 'Открыть стол'}</p>
                 ) : (
                   <p className="waiter-card-empty">{table.seatsCount} мест</p>
                 )}
@@ -154,6 +205,14 @@ export function WaiterPage() {
             );
           })}
         </div>
+      )}
+
+      {picker && (
+        <DishPickerModal
+          tableNumber={picker.tableNumber}
+          orderId={picker.orderId}
+          onClose={() => setPicker(null)}
+        />
       )}
     </div>
   );

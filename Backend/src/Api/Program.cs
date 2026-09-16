@@ -1,4 +1,5 @@
 using System.Text;
+using Cafe.Api.BackgroundServices;
 using Cafe.Api.Hubs;
 using Cafe.Api.Middleware;
 using Cafe.Api.Realtime;
@@ -30,6 +31,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddHostedService<KitchenPromotionBackgroundService>();
 
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
 
