@@ -30,6 +30,17 @@ public class AuthController : ControllerBase
         return result.ToActionResult();
     }
 
+    // Self-registration for the client-app (AMBRE) - the only anonymous account-creation
+    // endpoint. Always creates a Client-role Customer account; RegisterCustomerDto has no Role
+    // field, so this can never be used to create a StaffMember/Admin account (see Register above).
+    [HttpPost("register-client")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RegisterClient([FromBody] RegisterCustomerDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _authService.RegisterClientAsync(dto, cancellationToken);
+        return result.ToActionResult();
+    }
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginDto dto, CancellationToken cancellationToken)

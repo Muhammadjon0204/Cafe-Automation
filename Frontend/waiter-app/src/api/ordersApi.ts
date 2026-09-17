@@ -9,6 +9,10 @@ export interface OrderItem {
   totalPrice: number;
   status: number;
   note: string | null;
+  // Null until this item has actually been pushed to the kitchen - see
+  // OrderService.SendToKitchenAsync. Kitchen boards must only render items where this is set;
+  // the waiter panel uses it to split "Отправлено на кухню" from "Новые позиции".
+  sentToKitchenAt: string | null;
 }
 
 // Numeric Status/Type/PaymentStatus — no JsonStringEnumConverter is registered on the
@@ -85,4 +89,24 @@ export function openTable(values: OpenTableValues): Promise<OpenTableResult> {
 
 export function addOrderItem(orderId: number, values: AddOrderItemValues): Promise<Order> {
   return apiClient.post<Order>(`/orders/${orderId}/items`, values);
+}
+
+// Draft/Scheduled order -> promotes the whole order into the kitchen's queue. Already-live
+// order (New/Accepted/Cooking/Ready) with items added since the last send -> only the unsent
+// items are stamped/sent, the order's own status is untouched. Same endpoint either way - see
+// OrderService.SendToKitchenAsync.
+export function sendToKitchen(orderId: number): Promise<Order> {
+  return apiClient.post<Order>(`/orders/${orderId}/send-to-kitchen`, {});
+}
+
+export interface RemoveOrderItemValues {
+  force?: boolean;
+  reason?: string;
+}
+
+// A not-yet-sent item (sentToKitchenAt == null) removes silently. One already sent to the
+// kitchen requires force+reason (OrderService.ValidateForceGuard) - the caller is expected to
+// confirm with the user and collect a reason before passing force: true.
+export function removeOrderItem(orderId: number, itemId: number, values?: RemoveOrderItemValues): Promise<Order> {
+  return apiClient.delete<Order>(`/orders/${orderId}/items/${itemId}`, { data: values ?? {} });
 }

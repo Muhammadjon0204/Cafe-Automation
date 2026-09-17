@@ -11,4 +11,6 @@ public class CurrentUserDto
     public List<string> Roles { get; set; } = new List<string>();
 
     public int? StaffMemberId { get; set; }
+
+    public int? CustomerId { get; set; }
 }

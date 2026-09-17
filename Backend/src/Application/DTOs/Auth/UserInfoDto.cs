@@ -11,4 +11,6 @@ public class UserInfoDto
     public int? StaffMemberId { get; set; }
 
     public string? StaffRole { get; set; }
+
+    public int? CustomerId { get; set; }
 }

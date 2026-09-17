@@ -19,6 +19,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.Type).IsRequired().HasConversion<int>();
         builder.Property(x => x.CustomerId).IsRequired(false);
         builder.Property(x => x.CafeTableId).IsRequired(false);
+        builder.Property(x => x.DeliveryAddress).HasMaxLength(300);
         builder.Property(x => x.WaiterId).IsRequired(false);
         builder.Property(x => x.CreatedByStaffMemberId).IsRequired(false);
         builder.Property(x => x.ReservationId).IsRequired(false);

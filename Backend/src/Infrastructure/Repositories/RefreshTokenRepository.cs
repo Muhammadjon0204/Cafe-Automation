@@ -18,6 +18,7 @@ public class RefreshTokenRepository : IRefreshTokenRepository
     {
         return _context.RefreshTokens
             .Include(x => x.StaffMember)
+            .Include(x => x.Customer)
             .FirstOrDefaultAsync(x => x.Token == token, cancellationToken);
     }
 

@@ -32,6 +32,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<KitchenPromotionBackgroundService>();
+builder.Services.AddHostedService<ReservationActivationBackgroundService>();
 
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
 
@@ -113,6 +114,14 @@ using (var scope = app.Services.CreateScope())
         {
             await roleManager.CreateAsync(new IdentityRole(role));
         }
+    }
+
+    // Client isn't part of SystemRoles.All (that list is staff-registration input validation -
+    // see AuthController.Register) but still needs to exist as an Identity role for
+    // AuthController.RegisterClient to assign it.
+    if (!await roleManager.RoleExistsAsync(SystemRoles.Client))
+    {
+        await roleManager.CreateAsync(new IdentityRole(SystemRoles.Client));
     }
 
     // Bootstraps the very first Admin account so the system isn't stuck behind the

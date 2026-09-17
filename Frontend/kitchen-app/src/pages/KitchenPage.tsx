@@ -158,12 +158,16 @@ export function KitchenPage() {
                         <span className="kitchen-card-time">{minutesAgoLabel(order.orderedAt)}</span>
                       </div>
                       <ul className="kitchen-card-items">
-                        {order.items.map((item) => (
-                          <li key={item.id}>
-                            <span className="kitchen-card-item-qty">{item.quantity}×</span> {item.dishName}
-                            {item.note && <span className="kitchen-card-item-note"> — {item.note}</span>}
-                          </li>
-                        ))}
+                        {/* A waiter can add a new item to an order the kitchen is already cooking
+                            (TZ 10/21) - it must not appear here until they explicitly send it. */}
+                        {order.items
+                          .filter((item) => item.sentToKitchenAt != null)
+                          .map((item) => (
+                            <li key={item.id}>
+                              <span className="kitchen-card-item-qty">{item.quantity}×</span> {item.dishName}
+                              {item.note && <span className="kitchen-card-item-note"> — {item.note}</span>}
+                            </li>
+                          ))}
                       </ul>
                       {order.note && <p className="kitchen-card-note">⚠ {order.note}</p>}
                     </div>

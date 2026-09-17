@@ -1,6 +1,7 @@
 using Cafe.Api.Common;
 using Cafe.Application.DTOs.Reservations;
 using Cafe.Application.Interfaces.Services;
+using Cafe.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,13 +36,34 @@ public class ReservationsController : ControllerBase
         return result.ToActionResult();
     }
 
-    // Public booking: a guest can request a table without an account, as well as any staff
-    // member on the guest's behalf.
+    // Booking requires an account: any staff member on a guest's behalf, or a logged-in Client
+    // booking for themselves (ReservationService.CreateAsync forces CustomerId from the token
+    // for a Client caller - see there). Anonymous/guest-without-account booking was removed by
+    // request; the client-app now gates this action behind login/registration.
     [HttpPost]
-    [AllowAnonymous]
+    [Authorize(Roles = RolePolicies.AllStaff + "," + SystemRoles.Client)]
     public async Task<IActionResult> Create([FromBody] CreateReservationDto dto, CancellationToken cancellationToken)
     {
         var result = await _reservationService.CreateAsync(dto, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    // Client-app self-service - fully separate from GetAll/GetById above (which stay
+    // staff-only and unscoped) to avoid any risk of widening those. Always scoped to the
+    // caller's own reservations inside ReservationService.
+    [HttpGet("mine")]
+    [Authorize(Roles = SystemRoles.Client)]
+    public async Task<IActionResult> GetMine([FromQuery] ReservationFilterDto filter, CancellationToken cancellationToken)
+    {
+        var result = await _reservationService.GetMyReservationsAsync(filter, cancellationToken);
+        return result.ToActionResult();
+    }
+
+    [HttpGet("mine/{id:int}")]
+    [Authorize(Roles = SystemRoles.Client)]
+    public async Task<IActionResult> GetMineById(int id, CancellationToken cancellationToken)
+    {
+        var result = await _reservationService.GetMyReservationByIdAsync(id, cancellationToken);
         return result.ToActionResult();
     }
 

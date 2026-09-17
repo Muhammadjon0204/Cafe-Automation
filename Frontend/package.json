@@ -7,6 +7,7 @@
     "admin-app",
     "kitchen-app",
     "waiter-app",
+    "cashier-app",
     "shared"
   ],
   "scripts": {
@@ -23,7 +24,10 @@
     "dev:waiter": "npm run dev -w waiter-app",
     "build:waiter": "npm run build -w waiter-app",
     "lint:waiter": "npm run lint -w waiter-app",
-    "lint:all": "oxlint && npm run lint -w admin-app && npm run lint -w kitchen-app && npm run lint -w waiter-app"
+    "dev:cashier": "npm run dev -w cashier-app",
+    "build:cashier": "npm run build -w cashier-app",
+    "lint:cashier": "npm run lint -w cashier-app",
+    "lint:all": "oxlint && npm run lint -w admin-app && npm run lint -w kitchen-app && npm run lint -w waiter-app && npm run lint -w cashier-app"
   },
   "dependencies": {
     "@cafe/shared": "*",

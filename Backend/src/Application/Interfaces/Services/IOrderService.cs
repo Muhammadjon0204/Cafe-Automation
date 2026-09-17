@@ -38,4 +38,14 @@ public interface IOrderService
     Task<Result<GetOrderDto>> GetPreOrderAsync(int reservationId, CancellationToken cancellationToken = default);
 
     Task<Result<List<KitchenUpcomingOrderDto>>> GetUpcomingScheduledAsync(DateTime fromDate, DateTime toDate, CancellationToken cancellationToken = default);
+
+    // Client-app self-service delivery checkout - deliberately separate from CreateAsync/
+    // AddItemAsync above (staff-only, multi-step) rather than reusing them: one atomic call, own
+    // validation, price always taken from Dish.Price server-side. Exposed only via
+    // CustomerOrdersController, never OrdersController.
+    Task<Result<GetOrderDto>> CreateDeliveryOrderAsync(int customerId, CreateDeliveryOrderDto dto, CancellationToken cancellationToken = default);
+
+    Task<Result<PagedResult<GetOrderDto>>> GetMyOrdersAsync(int customerId, OrderFilterDto filter, CancellationToken cancellationToken = default);
+
+    Task<Result<GetOrderDto>> GetMyOrderByIdAsync(int customerId, int orderId, CancellationToken cancellationToken = default);
 }

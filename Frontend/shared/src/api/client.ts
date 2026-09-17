@@ -1,13 +1,29 @@
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios';
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '../auth/tokenStorage';
+import * as defaultTokenStorage from '../auth/tokenStorage';
 import { ApiError, type ApiResult } from './types';
+
+export interface AuthTokenStorage {
+  getAccessToken(): string | null;
+  getRefreshToken(): string | null;
+  setTokens(accessToken: string, refreshToken: string): void;
+  clearTokens(): void;
+}
+
+/** Defaults to the admin/waiter/kitchen storage (unchanged for those apps). The client-app
+ * swaps in its own via setAuthStorage() once at startup so the two never share a localStorage
+ * key, even though each app is its own bundle/origin and couldn't collide at runtime anyway. */
+let tokenStorage: AuthTokenStorage = defaultTokenStorage;
+
+export function setAuthStorage(storage: AuthTokenStorage): void {
+  tokenStorage = storage;
+}
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
 http.interceptors.request.use((config) => {
-  const token = getAccessToken();
+  const token = tokenStorage.getAccessToken();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
   }
@@ -47,7 +63,7 @@ interface RefreshResponseData {
 let refreshPromise: Promise<string | null> | null = null;
 
 async function performRefresh(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
+  const refreshToken = tokenStorage.getRefreshToken();
   if (!refreshToken) return null;
 
   try {
@@ -58,7 +74,7 @@ async function performRefresh(): Promise<string | null> {
       { refreshToken },
     );
     if (!response.data.isSuccess || !response.data.data) return null;
-    setTokens(response.data.data.accessToken, response.data.data.refreshToken);
+    tokenStorage.setTokens(response.data.data.accessToken, response.data.data.refreshToken);
     return response.data.data.accessToken;
   } catch {
     return null;
@@ -105,7 +121,7 @@ http.interceptors.response.use(
           return http.request(config);
         }
       }
-      clearTokens();
+      tokenStorage.clearTokens();
       unauthorizedHandler?.();
     }
 

@@ -1,0 +1,116 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family: 'Montserrat', -apple-system, system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  transition: background .35s ease, color .35s ease;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+  .skeleton {
+    animation: none !important;
+  }
+}
+
+.page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: var(--space-5);
+  padding: var(--space-6);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 12px;
+  color: var(--color-muted);
+}
+.page-state h1 {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: var(--color-fg);
+}
+.page-state a {
+  color: var(--color-accent);
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(100deg, var(--color-card) 30%, var(--color-bg-2) 50%, var(--color-card) 70%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.error-retry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.error-retry-btn {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-4);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.error-retry-btn:hover {
+  background: var(--color-bg-2);
+}
+
+.empty-state {
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}

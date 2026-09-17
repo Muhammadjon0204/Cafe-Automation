@@ -1,10 +1,12 @@
 using Cafe.Application.Common;
 using Cafe.Application.DTOs.Orders;
 using Cafe.Application.DTOs.Reservations;
+using Cafe.Application.Interfaces.Identity;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
 using Cafe.Application.Services.Reservations.Specifications;
+using Cafe.Domain.Constants;
 using Cafe.Domain.Entities;
 using Cafe.Domain.Enums;
 
@@ -19,6 +21,7 @@ public class ReservationService : IReservationService
     private readonly IOrderService _orderService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotifier _realtimeNotifier;
+    private readonly ICurrentUserService _currentUserService;
 
     public ReservationService(
         IReservationRepository reservationRepository,
@@ -27,7 +30,8 @@ public class ReservationService : IReservationService
         IOrderRepository orderRepository,
         IOrderService orderService,
         IUnitOfWork unitOfWork,
-        IRealtimeNotifier realtimeNotifier)
+        IRealtimeNotifier realtimeNotifier,
+        ICurrentUserService currentUserService)
     {
         _reservationRepository = reservationRepository;
         _tableRepository = tableRepository;
@@ -36,6 +40,7 @@ public class ReservationService : IReservationService
         _orderService = orderService;
         _unitOfWork = unitOfWork;
         _realtimeNotifier = realtimeNotifier;
+        _currentUserService = currentUserService;
     }
 
     // Shared by UpdateStatusAsync and DeleteAsync: a reservation ending up Cancelled cancels
@@ -85,8 +90,41 @@ public class ReservationService : IReservationService
         return Result<GetReservationDto>.Success(MapToDto(reservation));
     }
 
+    public async Task<Result<PagedResult<GetReservationDto>>> GetMyReservationsAsync(ReservationFilterDto filter, CancellationToken cancellationToken = default)
+    {
+        // Deny-by-default: a Client-role token with no linked CustomerId (shouldn't happen -
+        // registration always creates one) is scoped to a filter that matches nothing, not to
+        // "unfiltered", mirroring OrderService.GetAllAsync's Waiter row-scoping pattern.
+        filter.CustomerId = _currentUserService.CustomerId ?? -1;
+
+        var spec = new ReservationFilterSpecification(filter);
+        var pagedReservations = await _reservationRepository.GetAsync(spec, cancellationToken);
+        var result = pagedReservations.MapTo(MapToDto);
+        return Result<PagedResult<GetReservationDto>>.Success(result);
+    }
+
+    public async Task<Result<GetReservationDto>> GetMyReservationByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var reservation = await _reservationRepository.GetByIdAsync(id, cancellationToken);
+        if (reservation == null || reservation.IsDeleted || reservation.CustomerId != _currentUserService.CustomerId)
+        {
+            return Result<GetReservationDto>.Failure("Reservation not found.");
+        }
+
+        return Result<GetReservationDto>.Success(MapToDto(reservation));
+    }
+
     public async Task<Result<GetReservationDto>> CreateAsync(CreateReservationDto dto, CancellationToken cancellationToken = default)
     {
+        // A logged-in customer books for themselves only - never trust a client-supplied
+        // CustomerId here (that would let one account attach a booking to another customer's
+        // history). Staff callers (Admin/Manager/Waiter/Cashier/Kitchen) keep today's behavior:
+        // free-text guest booking, or picking an existing CRM customer by id.
+        if (_currentUserService.IsInRole(SystemRoles.Client))
+        {
+            dto.CustomerId = _currentUserService.CustomerId ?? -1;
+        }
+
         dto.ReservedAt = ServiceHelpers.AsUtc(dto.ReservedAt);
         dto.ReservedUntil = ServiceHelpers.AsUtc(dto.ReservedUntil);
 
@@ -114,19 +152,11 @@ public class ReservationService : IReservationService
 
         await _reservationRepository.AddAsync(reservation, cancellationToken);
 
-        var tableStatusChanged = table != null && table.Status == TableStatus.Free;
-        if (tableStatusChanged)
-        {
-            table!.Status = TableStatus.Reserved;
-            table.UpdatedAt = DateTime.UtcNow;
-            _tableRepository.Update(table);
-        }
-
+        // Table stays whatever it currently is (usually Free) on booking - it only flips to
+        // TableStatus.Reserved once ReservationActivationBackgroundService sees the reservation
+        // fall inside the activation window, so a same-day-evening booking doesn't block the
+        // table all morning.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        if (tableStatusChanged)
-        {
-            await NotifyTableChangedAsync(table!.Id, cancellationToken);
-        }
         return Result<GetReservationDto>.Success(MapToDto(reservation), "Reservation created.");
     }
 

@@ -1,0 +1,259 @@
+.side-panel-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.side-panel-empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.side-panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Reservation card */
+
+.reservation-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: 12px;
+  border: 1px solid var(--color-info-bg);
+  background: var(--color-info-bg);
+}
+.reservation-card.is-overdue {
+  border-color: var(--color-warn-bg);
+  background: var(--color-warn-bg);
+}
+.reservation-card-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.reservation-card-time {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-fg);
+}
+.reservation-card-name {
+  font-weight: 700;
+  color: var(--color-fg);
+}
+.reservation-card-phone,
+.reservation-card-note {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.reservation-card-countdown {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-info);
+}
+.reservation-card.is-overdue .reservation-card-countdown {
+  color: var(--color-warn);
+}
+.reservation-card-overdue-label {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-warn);
+}
+
+/* Order items */
+
+.order-item-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.order-item-group-title {
+  margin: var(--space-1) 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--color-muted);
+}
+.order-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: var(--font-size-sm);
+}
+.order-item-check {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+.order-item-bullet {
+  color: var(--color-accent-2);
+  font-weight: 700;
+}
+.order-item-name {
+  flex: 1;
+  color: var(--color-fg);
+}
+.order-item-remove {
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.order-item-remove:hover {
+  color: var(--color-danger);
+}
+
+.order-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  color: var(--color-fg);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.cancel-reason-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: 12px;
+  border: 1px solid var(--color-danger-bg);
+  background: var(--color-danger-bg);
+}
+.cancel-reason-picker p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+}
+.cancel-reason-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.cancel-reason-list .table-actions-btn {
+  padding: var(--space-1) var(--space-2);
+  font-size: 12px;
+}
+
+/* Status change menu */
+
+.status-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+.status-menu-item {
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-align: left;
+  padding: var(--space-2) var(--space-2);
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--color-fg);
+  cursor: pointer;
+}
+.status-menu-item:hover:not(:disabled) {
+  background: var(--color-bg-2);
+}
+.status-menu-item:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+/* Dish search/add list (moved from the old DishPickerModal) */
+
+.dish-search-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.dish-picker-search {
+  font: inherit;
+  font-size: var(--font-size-md);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.dish-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.dish-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+
+.dish-picker-row-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.dish-picker-row-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dish-picker-row-category {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.dish-picker-row-price {
+  font-size: 12px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.dish-picker-add-btn {
+  font: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dish-picker-add-btn:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+}
+.dish-picker-add-btn:disabled {
+  opacity: .6;
+  cursor: default;
+}

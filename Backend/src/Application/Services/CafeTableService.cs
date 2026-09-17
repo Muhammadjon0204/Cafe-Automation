@@ -1,5 +1,6 @@
 using Cafe.Application.Common;
 using Cafe.Application.DTOs.CafeTables;
+using Cafe.Application.DTOs.Reservations;
 using Cafe.Application.Interfaces.Repositories;
 using Cafe.Application.Interfaces.Services;
 using Cafe.Application.Results;
@@ -12,6 +13,8 @@ public class CafeTableService : ICafeTableService
 {
     private readonly ICafeTableRepository _tableRepository;
     private readonly IZoneRepository _zoneRepository;
+    private readonly IReservationRepository _reservationRepository;
+    private readonly IOrderRepository _orderRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotifier _realtimeNotifier;
     private readonly ITableAvailabilityService _tableAvailabilityService;
@@ -19,12 +22,16 @@ public class CafeTableService : ICafeTableService
     public CafeTableService(
         ICafeTableRepository tableRepository,
         IZoneRepository zoneRepository,
+        IReservationRepository reservationRepository,
+        IOrderRepository orderRepository,
         IUnitOfWork unitOfWork,
         IRealtimeNotifier realtimeNotifier,
         ITableAvailabilityService tableAvailabilityService)
     {
         _tableRepository = tableRepository;
         _zoneRepository = zoneRepository;
+        _reservationRepository = reservationRepository;
+        _orderRepository = orderRepository;
         _unitOfWork = unitOfWork;
         _realtimeNotifier = realtimeNotifier;
         _tableAvailabilityService = tableAvailabilityService;
@@ -80,7 +87,12 @@ public class CafeTableService : ICafeTableService
             query = query.Where(x => x.Location != null && x.Location.Contains(location, StringComparison.OrdinalIgnoreCase));
         }
 
-        var result = PaginationHelper.CreatePagedResult(query.OrderBy(x => x.TableNumber).Select(MapToDto), filter.PageNumber, filter.PageSize);
+        var matched = query.OrderBy(x => x.TableNumber).ToList();
+        var reservationsByTableId = await GetUpcomingReservationsByTableIdAsync(matched.Select(x => x.Id), cancellationToken);
+        var result = PaginationHelper.CreatePagedResult(
+            matched.Select(x => MapToDto(x, reservationsByTableId.GetValueOrDefault(x.Id))),
+            filter.PageNumber,
+            filter.PageSize);
         return Result<PagedResult<GetCafeTableDto>>.Success(result);
     }
 
@@ -92,7 +104,16 @@ public class CafeTableService : ICafeTableService
             return Result<GetCafeTableDto>.Failure("Table not found.");
         }
 
-        return Result<GetCafeTableDto>.Success(MapToDto(table));
+        var upcomingReservation = await _reservationRepository.GetNearestUpcomingActiveAsync(id, DateTime.UtcNow, cancellationToken);
+        return Result<GetCafeTableDto>.Success(MapToDto(table, upcomingReservation));
+    }
+
+    // One query for all matched tables instead of one per table (see
+    // IReservationRepository.GetNearestUpcomingActiveForTablesAsync).
+    private async Task<Dictionary<int, Reservation>> GetUpcomingReservationsByTableIdAsync(IEnumerable<int> tableIds, CancellationToken cancellationToken)
+    {
+        var reservations = await _reservationRepository.GetNearestUpcomingActiveForTablesAsync(tableIds, DateTime.UtcNow, cancellationToken);
+        return reservations.ToDictionary(x => x.CafeTableId);
     }
 
     public async Task<Result<GetCafeTableDto>> CreateAsync(CreateCafeTableDto dto, CancellationToken cancellationToken = default)
@@ -234,6 +255,19 @@ public class CafeTableService : ICafeTableService
             return Result.Failure("Invalid table status.");
         }
 
+        // The one hard-enforced rule (TZ 27): the waiter/frontend "Изменить статус" menu can
+        // otherwise offer whatever manual correction the situation calls for, but a table can
+        // never be silently marked Free while it's still carrying an unpaid balance - that
+        // would strand the order with no table to reference on the floor.
+        if (dto.Status == TableStatus.Free)
+        {
+            var activeOrder = await _orderRepository.GetActiveByTableIdAsync(id, cancellationToken);
+            if (activeOrder != null && activeOrder.PaymentStatus != PaymentStatus.Paid && activeOrder.TotalAmount > 0)
+            {
+                return Result.Failure($"Table has an unpaid order for {activeOrder.TotalAmount}. Close the order before freeing the table.");
+            }
+        }
+
         table.Status = dto.Status;
         table.UpdatedAt = DateTime.UtcNow;
         _tableRepository.Update(table);
@@ -270,7 +304,7 @@ public class CafeTableService : ICafeTableService
         return Result.Success();
     }
 
-    private static GetCafeTableDto MapToDto(CafeTable table)
+    private static GetCafeTableDto MapToDto(CafeTable table, Reservation? upcomingReservation = null)
     {
         return new GetCafeTableDto
         {
@@ -288,7 +322,29 @@ public class CafeTableService : ICafeTableService
             ZoneId = table.ZoneId,
             ZoneName = table.Zone?.Name,
             CreatedAt = table.CreatedAt,
-            UpdatedAt = table.UpdatedAt
+            UpdatedAt = table.UpdatedAt,
+            UpcomingReservation = upcomingReservation == null ? null : MapReservationToDto(upcomingReservation, table.TableNumber)
+        };
+    }
+
+    private static GetReservationDto MapReservationToDto(Reservation reservation, int tableNumber)
+    {
+        return new GetReservationDto
+        {
+            Id = reservation.Id,
+            CafeTableId = reservation.CafeTableId,
+            TableNumber = tableNumber,
+            CustomerId = reservation.CustomerId,
+            CustomerName = reservation.CustomerName,
+            Phone = reservation.Phone,
+            GuestsCount = reservation.GuestsCount,
+            ReservedAt = reservation.ReservedAt,
+            ReservedUntil = reservation.ReservedUntil,
+            CancelledAt = reservation.CancelledAt,
+            Status = reservation.Status,
+            Note = reservation.Note,
+            CreatedAt = reservation.CreatedAt,
+            UpdatedAt = reservation.UpdatedAt
         };
     }
 }

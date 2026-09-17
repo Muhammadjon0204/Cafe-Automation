@@ -88,4 +88,39 @@ public class ReservationRepository : IReservationRepository
             .OrderBy(x => x.ReservedAt)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    public Task<List<Reservation>> GetDueForActivationAsync(DateTime asOfUtc, int windowMinutes, CancellationToken cancellationToken = default)
+    {
+        var horizon = asOfUtc.AddMinutes(windowMinutes);
+        return _context.Reservations
+            .Include(x => x.CafeTable)
+            .Where(x =>
+                (x.Status == ReservationStatus.Pending || x.Status == ReservationStatus.Confirmed) &&
+                x.ReservedAt <= horizon &&
+                x.ReservedAt > asOfUtc &&
+                x.CafeTable!.Status == TableStatus.Free)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Reservation>> GetNearestUpcomingActiveForTablesAsync(IEnumerable<int> cafeTableIds, DateTime asOfUtc, CancellationToken cancellationToken = default)
+    {
+        var ids = cafeTableIds.ToList();
+        if (ids.Count == 0)
+        {
+            return new List<Reservation>();
+        }
+
+        var candidates = await _context.Reservations
+            .Where(x =>
+                ids.Contains(x.CafeTableId) &&
+                (x.Status == ReservationStatus.Pending || x.Status == ReservationStatus.Confirmed) &&
+                (x.ReservedUntil ?? x.ReservedAt) >= asOfUtc)
+            .OrderBy(x => x.ReservedAt)
+            .ToListAsync(cancellationToken);
+
+        return candidates
+            .GroupBy(x => x.CafeTableId)
+            .Select(g => g.First())
+            .ToList();
+    }
 }

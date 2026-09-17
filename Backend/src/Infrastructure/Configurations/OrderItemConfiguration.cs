@@ -19,6 +19,7 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.Property(x => x.TotalPrice).IsRequired().HasPrecision(18, 2);
         builder.Property(x => x.Status).IsRequired().HasConversion<int>();
         builder.Property(x => x.Note).HasMaxLength(500);
+        builder.Property(x => x.SentToKitchenAt).IsRequired(false);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);

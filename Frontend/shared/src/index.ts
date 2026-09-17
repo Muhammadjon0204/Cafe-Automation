@@ -1,6 +1,7 @@
 export { useThemeTransition } from './theme/useThemeTransition';
 
-export { apiClient, setConflictHandler, setUnauthorizedHandler } from './api/client';
+export { apiClient, setAuthStorage, setConflictHandler, setUnauthorizedHandler } from './api/client';
+export type { AuthTokenStorage } from './api/client';
 export { ApiError } from './api/types';
 export type { ApiResult, PagedData } from './api/types';
 

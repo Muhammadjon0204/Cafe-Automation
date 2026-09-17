@@ -316,6 +316,20 @@ public class OrderService : IOrderService
             existing.UpdatedAt = item.UpdatedAt;
         }
 
+        // Removing the last active item off an already-promoted order (New/Accepted/Cooking/
+        // Ready/Served) would otherwise leave a ghost order sitting in that status forever -
+        // nothing left to cook or serve, but still "active" so it keeps haunting the waiter
+        // board and never becomes eligible for the Cashier's checks (TotalAmount is now 0,
+        // there's nothing to charge). Falling back to Draft is exactly the "nothing sent to
+        // the kitchen yet" state this already means elsewhere - the waiter can add new items
+        // and send again, or explicitly cancel the table's order via the table-status guard.
+        var stillHasItems = order.Items.Any(x => !x.IsDeleted && x.Status != OrderItemStatus.Cancelled);
+        if (!stillHasItems && order.Status != OrderStatus.Draft && order.Status != OrderStatus.Scheduled &&
+            order.Status != OrderStatus.Closed && order.Status != OrderStatus.Cancelled)
+        {
+            order.Status = OrderStatus.Draft;
+        }
+
         await RecalculateOrderTotalsAsync(order, cancellationToken);
         await RecalculateSendToKitchenAsync(order, cancellationToken);
         _orderRepository.Update(order);
@@ -339,13 +353,14 @@ public class OrderService : IOrderService
             return Result<GetOrderDto>.Failure("Invalid order status.");
         }
 
-        // A Scheduled pre-order only ever leaves that status through SendToKitchenAsync
-        // (manual "send to kitchen" or the promotion background job) - never through this
-        // generic endpoint. This is also what keeps Kitchen from touching it early (TZ 6.2):
-        // Kitchen's only status-change path is this same method.
-        if (order.Status == OrderStatus.Scheduled)
+        // A Draft (walk-in, not yet sent) or Scheduled (reservation pre-order, not yet due)
+        // order only ever leaves that status through SendToKitchenAsync (manual "send to
+        // kitchen" or the promotion background job) - never through this generic endpoint.
+        // This is also what keeps Kitchen from touching it early (TZ 6.2): Kitchen's only
+        // status-change path is this same method.
+        if (order.Status == OrderStatus.Draft || order.Status == OrderStatus.Scheduled)
         {
-            return Result<GetOrderDto>.Failure("Scheduled order must be promoted via send-to-kitchen before its status can change.");
+            return Result<GetOrderDto>.Failure("Draft order must be sent to the kitchen before its status can change.");
         }
 
         // Kitchen only runs the cooking pipeline (Accepted/Cooking/Ready) and never touches
@@ -569,7 +584,10 @@ public class OrderService : IOrderService
         {
             OrderNumber = $"ORD-{now:yyyyMMddHHmmssfff}",
             OrderedAt = now,
-            Status = OrderStatus.New,
+            // Draft: table and order are separate concerns - opening a table never implies the
+            // kitchen sees anything yet. The waiter builds up items here and explicitly calls
+            // SendToKitchenAsync when ready (same promotion path a reservation pre-order uses).
+            Status = OrderStatus.Draft,
             Type = OrderType.DineIn,
             CafeTableId = dto.CafeTableId,
             WaiterId = dto.WaiterId ?? _currentUserService.StaffMemberId,
@@ -591,6 +609,15 @@ public class OrderService : IOrderService
         return Result<OpenTableResultDto>.Success(new OpenTableResultDto { Order = MapToDto(order), Warning = warning }, "Table opened.");
     }
 
+    // Covers two distinct cases behind one action (what the waiter UI always calls "Отправить
+    // на кухню"):
+    //  - Draft (walk-in table, never sent) or Scheduled (reservation pre-order, not yet due) -
+    //    promotes the whole order into the kitchen's working queue, same as before.
+    //  - Already-live order (New/Accepted/Cooking/Ready) with items added since the last send -
+    //    order.Status is untouched; only the newly-added, still-unsent items get stamped, so the
+    //    kitchen sees just the addition rather than the whole order re-appearing as new.
+    // Used identically by the manual endpoint and KitchenPromotionBackgroundService for the
+    // Draft/Scheduled case - no duplicated transition logic between the two.
     public async Task<Result<GetOrderDto>> SendToKitchenAsync(int orderId, CancellationToken cancellationToken = default)
     {
         var order = await GetOrderWithDetailsAsync(orderId, cancellationToken);
@@ -599,24 +626,39 @@ public class OrderService : IOrderService
             return Result<GetOrderDto>.Failure("Order not found.");
         }
 
-        if (order.Status != OrderStatus.Scheduled)
+        var isInitialPromotion = order.Status == OrderStatus.Draft || order.Status == OrderStatus.Scheduled;
+        if (!isInitialPromotion && order.Status != OrderStatus.New && order.Status != OrderStatus.Accepted &&
+            order.Status != OrderStatus.Cooking && order.Status != OrderStatus.Ready)
         {
-            return Result<GetOrderDto>.Failure("Order is not a pending pre-order.");
+            return Result<GetOrderDto>.Failure("Order is not open for sending items to the kitchen.");
         }
 
-        if (!order.Items.Any(x => !x.IsDeleted))
+        var pendingItems = order.Items.Where(x => !x.IsDeleted && x.Status != OrderItemStatus.Cancelled && x.SentToKitchenAt == null).ToList();
+        if (pendingItems.Count == 0)
         {
-            return Result<GetOrderDto>.Failure("Cannot send an empty pre-order to the kitchen.");
+            return Result<GetOrderDto>.Failure(isInitialPromotion
+                ? "Cannot send an empty order to the kitchen."
+                : "No new items to send to the kitchen.");
         }
 
-        // Items already sit at OrderItemStatus.New from AddItemAsync - promotion is purely a
-        // Status/OrderedAt change on the parent Order so it enters the kitchen's normal
-        // working queue (and its normal PATCH /status lifecycle) from here on. Used
-        // identically by the manual endpoint and KitchenPromotionBackgroundService - no
-        // duplicated transition logic between the two.
-        order.Status = OrderStatus.New;
-        order.OrderedAt = DateTime.UtcNow;
-        order.UpdatedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        foreach (var item in pendingItems)
+        {
+            item.SentToKitchenAt = now;
+            item.UpdatedAt = now;
+            _orderItemRepository.Update(item);
+        }
+
+        if (isInitialPromotion)
+        {
+            // Items already sit at OrderItemStatus.New from AddItemAsync - promotion is purely a
+            // Status/OrderedAt change on the parent Order so it enters the kitchen's normal
+            // working queue (and its normal PATCH /status lifecycle) from here on.
+            order.Status = OrderStatus.New;
+            order.OrderedAt = now;
+        }
+
+        order.UpdatedAt = now;
 
         _orderRepository.Update(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -707,6 +749,138 @@ public class OrderService : IOrderService
         }).ToList();
 
         return Result<List<KitchenUpcomingOrderDto>>.Success(result);
+    }
+
+    // Client-app self-checkout: one atomic cart -> order call, price always taken from
+    // Dish.Price server-side (never trust a client-sent price). Reuses the same
+    // RecalculateOrderTotalsAsync/NotifyOrderChangedAsync helpers CreateAsync/AddItemAsync use,
+    // so the order shows up live on the admin/kitchen boards exactly like any other
+    // TakeAway/Delivery order - no changes needed there.
+    public async Task<Result<GetOrderDto>> CreateDeliveryOrderAsync(int customerId, CreateDeliveryOrderDto dto, CancellationToken cancellationToken = default)
+    {
+        if (dto.Items.Count == 0)
+        {
+            return Result<GetOrderDto>.Failure("Cart is empty.");
+        }
+
+        if (dto.Items.Count > 50)
+        {
+            return Result<GetOrderDto>.Failure("Too many items in one order.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.DeliveryAddress))
+        {
+            return Result<GetOrderDto>.Failure("Delivery address is required.");
+        }
+
+        if (!ServiceHelpers.HasMaxLength(dto.DeliveryAddress, 300))
+        {
+            return Result<GetOrderDto>.Failure("Delivery address must be 300 characters or less.");
+        }
+
+        if (!ServiceHelpers.HasMaxLength(dto.Phone, 30))
+        {
+            return Result<GetOrderDto>.Failure("Phone must be 30 characters or less.");
+        }
+
+        if (!ServiceHelpers.HasMaxLength(dto.Note, 500))
+        {
+            return Result<GetOrderDto>.Failure("Note must be 500 characters or less.");
+        }
+
+        var customer = await _customerRepository.GetByIdAsync(customerId, cancellationToken);
+        if (customer == null || customer.IsDeleted)
+        {
+            return Result<GetOrderDto>.Failure("Customer not found.");
+        }
+
+        if (customer.Status == CustomerStatus.Blocked)
+        {
+            return Result<GetOrderDto>.Failure("Customer is blocked.");
+        }
+
+        var items = new List<OrderItem>();
+        foreach (var line in dto.Items)
+        {
+            if (line.Quantity <= 0 || line.Quantity > 100)
+            {
+                return Result<GetOrderDto>.Failure("Quantity must be between 1 and 100.");
+            }
+
+            if (!ServiceHelpers.HasMaxLength(line.Note, 500))
+            {
+                return Result<GetOrderDto>.Failure("Item note must be 500 characters or less.");
+            }
+
+            var dish = await _dishRepository.GetByIdWithCategoryAsync(line.DishId, cancellationToken)
+                ?? await _dishRepository.GetByIdAsync(line.DishId, cancellationToken);
+            if (dish == null || dish.IsDeleted || !dish.IsAvailable || dish.Status != DishStatus.Active)
+            {
+                return Result<GetOrderDto>.Failure($"Dish #{line.DishId} is not available.");
+            }
+
+            items.Add(new OrderItem
+            {
+                DishId = dish.Id,
+                Dish = dish,
+                Quantity = line.Quantity,
+                UnitPrice = dish.Price,
+                TotalPrice = dish.Price * line.Quantity,
+                Status = OrderItemStatus.New,
+                Note = ServiceHelpers.TrimToNull(line.Note),
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        var now = DateTime.UtcNow;
+        var order = new Order
+        {
+            OrderNumber = $"DLV-{now:yyyyMMddHHmmssfff}",
+            OrderedAt = now,
+            Status = OrderStatus.New,
+            Type = OrderType.Delivery,
+            CustomerId = customerId,
+            Customer = customer,
+            DeliveryAddress = dto.DeliveryAddress.Trim(),
+            PaymentStatus = PaymentStatus.Unpaid,
+            Note = ServiceHelpers.TrimToNull(dto.Note),
+            CreatedAt = now
+        };
+
+        foreach (var item in items)
+        {
+            order.Items.Add(item);
+        }
+
+        await _orderRepository.AddAsync(order, cancellationToken);
+        await RecalculateOrderTotalsAsync(order, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await NotifyOrderChangedAsync(order.Id, order.CafeTableId, cancellationToken);
+
+        return Result<GetOrderDto>.Success(MapToDto(order), "Order created.");
+    }
+
+    public async Task<Result<PagedResult<GetOrderDto>>> GetMyOrdersAsync(int customerId, OrderFilterDto filter, CancellationToken cancellationToken = default)
+    {
+        // Deny-by-default, matching the Waiter row-scoping above: a Client-role caller can never
+        // widen this beyond their own orders, regardless of what the filter DTO says.
+        filter.CustomerId = customerId;
+
+        var spec = new OrderFilterSpecification(filter);
+        var pagedOrders = await _orderRepository.GetAsync(spec, cancellationToken);
+        var result = pagedOrders.MapTo(MapToDto);
+        return Result<PagedResult<GetOrderDto>>.Success(result);
+    }
+
+    public async Task<Result<GetOrderDto>> GetMyOrderByIdAsync(int customerId, int orderId, CancellationToken cancellationToken = default)
+    {
+        var order = await GetOrderWithDetailsAsync(orderId, cancellationToken);
+        if (order == null || order.IsDeleted || order.CustomerId != customerId)
+        {
+            return Result<GetOrderDto>.Failure("Order not found.");
+        }
+
+        return Result<GetOrderDto>.Success(MapToDto(order));
     }
 
     private async Task<Result> ValidateCreateAsync(CreateOrderDto dto, CancellationToken cancellationToken)
@@ -867,7 +1041,10 @@ public class OrderService : IOrderService
             return;
         }
 
-        table.Status = TableStatus.Free;
+        // The order is done (paid and closed, or cancelled), but the table itself may still be
+        // physically dirty - it goes through Cleaning rather than straight back to Free. A
+        // waiter explicitly marks it "Стол убран" (CafeTableService.UpdateStatusAsync) to free it.
+        table.Status = TableStatus.Cleaning;
         table.UpdatedAt = DateTime.UtcNow;
         _tableRepository.Update(table);
         order.CafeTable = table;
@@ -879,7 +1056,10 @@ public class OrderService : IOrderService
     // guest changed their mind after cooking started, etc.).
     private static Result<GetOrderDto>? ValidateForceGuard(OrderItem item, bool force, string? reason)
     {
-        var isProtected = item.Status == OrderItemStatus.Cooking || item.Status == OrderItemStatus.Served;
+        // SentToKitchenAt is the real "kitchen has already seen this" signal (OrderItemStatus
+        // is never transitioned per-item today); kept alongside the Cooking/Served check for
+        // forward compat if per-item kitchen statuses get wired up later.
+        var isProtected = item.SentToKitchenAt != null || item.Status == OrderItemStatus.Cooking || item.Status == OrderItemStatus.Served;
         if (!isProtected)
         {
             return null;
@@ -887,7 +1067,7 @@ public class OrderService : IOrderService
 
         if (!force)
         {
-            return Result<GetOrderDto>.Failure($"Item is already {item.Status}; pass force=true with a reason to override.");
+            return Result<GetOrderDto>.Failure("Item was already sent to the kitchen; pass force=true with a reason to cancel it.");
         }
 
         if (string.IsNullOrWhiteSpace(reason))
@@ -913,7 +1093,8 @@ public class OrderService : IOrderService
 
     private static bool CanMoveToStatus(Order order, OrderStatus target)
     {
-        if (order.Status == OrderStatus.Scheduled || order.Status == OrderStatus.Closed || order.Status == OrderStatus.Cancelled)
+        if (order.Status == OrderStatus.Draft || order.Status == OrderStatus.Scheduled ||
+            order.Status == OrderStatus.Closed || order.Status == OrderStatus.Cancelled)
         {
             return false;
         }
@@ -959,6 +1140,7 @@ public class OrderService : IOrderService
             CustomerName = ServiceHelpers.BuildCustomerName(order.Customer),
             CafeTableId = order.CafeTableId,
             TableNumber = order.CafeTable?.TableNumber,
+            DeliveryAddress = order.DeliveryAddress,
             WaiterId = order.WaiterId,
             WaiterName = ServiceHelpers.BuildStaffName(order.Waiter),
             CreatedByStaffMemberId = order.CreatedByStaffMemberId,
@@ -988,7 +1170,8 @@ public class OrderService : IOrderService
             UnitPrice = item.UnitPrice,
             TotalPrice = item.TotalPrice,
             Status = item.Status,
-            Note = item.Note
+            Note = item.Note,
+            SentToKitchenAt = item.SentToKitchenAt
         };
     }
 }

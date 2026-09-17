@@ -9,6 +9,11 @@ export interface OrderItem {
   totalPrice: number;
   status: number;
   note: string | null;
+  // Null until the waiter has actually sent this item to the kitchen (OrderService.
+  // SendToKitchenAsync) - an order can carry unsent draft items alongside sent ones (a new
+  // addition to an already-cooking order), so the board must only render items where this is
+  // set. See KitchenPage's item filter below.
+  sentToKitchenAt: string | null;
 }
 
 // Numeric Status/Type/PaymentStatus — no JsonStringEnumConverter is registered on the

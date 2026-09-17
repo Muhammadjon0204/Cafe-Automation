@@ -575,6 +575,8 @@
   background: repeating-linear-gradient(135deg, var(--ph) 0 13px, transparent 13px 26px), var(--bg2);
   display: grid;
   place-items: center;
+  position: relative;
+  overflow: hidden;
 }
 .dish-shot span {
   font-family: ui-monospace, Menlo, monospace;
@@ -614,7 +616,25 @@
   color: var(--muted);
 }
 
+.dish-add-btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  font-size: 13.5px;
+  border-color: var(--line);
+}
+.dish-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .dish-shot img {
+  /* Taken out of grid flow on purpose: as a grid item sized by percentage width/height,
+     the browser can't resolve that percentage while sizing the auto grid row (a circular
+     dependency) and falls back to the image's own intrinsic ratio - so a portrait source
+     photo silently overrode the 4:3 box instead of being cropped to it. Absolute positioning
+     sizes the image against .dish-shot's own aspect-ratio box directly, sidestepping that. */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -683,6 +703,11 @@
   font-size: 13.5px;
   font-weight: 600;
   color: var(--fg);
+  /* Grid items default to min-width: auto, which floors a 1fr track at its content's
+     intrinsic width (an <input>'s ~20-char default) instead of letting it shrink to the
+     track's actual share. Invisible in .reserve-row's original wide (640px) home, but the
+     auth modal's narrower two-column rows overflow past the card without this. */
+  min-width: 0;
 }
 .reserve-field input,
 .reserve-field select,
@@ -753,4 +778,312 @@
   gap: 22px;
   font-size: 13.5px;
   color: var(--muted);
+}
+
+/* Auth + account + cart */
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.auth-actions-btn {
+  padding: 9px 18px;
+  font-size: 13.5px;
+}
+
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .2s ease, background .2s ease;
+  max-width: 160px;
+}
+.account-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-pill:hover { border-color: var(--accent); }
+
+.cart-trigger {
+  position: relative;
+}
+.cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 10.5px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
+/* Modal (auth + account) */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 18, 16, .46);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fadeUp .22s ease both;
+}
+
+.modal-card {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: min(88vh, 720px);
+  overflow-y: auto;
+  background: var(--card);
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  padding: clamp(28px, 4vw, 40px);
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color .2s ease, color .2s ease;
+}
+.modal-close:hover { border-color: var(--line-strong); color: var(--fg); }
+
+.auth-modal-title {
+  margin-bottom: 22px;
+  font-size: clamp(24px, 3vw, 28px);
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 22px;
+  border-radius: 999px;
+  background: var(--bg2);
+  width: fit-content;
+}
+.auth-tab {
+  padding: 9px 20px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease;
+}
+.auth-tab.is-active {
+  background: var(--card);
+  color: var(--fg);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-hint {
+  margin: -6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.account-email {
+  margin: -14px 0 22px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.account-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.account-section-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.account-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.account-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg2);
+  font-size: 13.5px;
+  color: var(--fg);
+}
+.account-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.account-logout {
+  margin-top: 26px;
+  width: 100%;
+  justify-content: center;
+}
+
+/* Cart drawer */
+
+.cart-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(20, 18, 16, .46);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.cart-drawer {
+  position: relative;
+  width: min(420px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--card);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  padding: clamp(24px, 4vw, 34px);
+  animation: cart-slide-in .28s ease both;
+}
+@keyframes cart-slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.cart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.cart-title { margin: 0; font-size: 24px; }
+.cart-head .modal-close { position: static; }
+
+.cart-list {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cart-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.cart-item-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14.5px;
+}
+.cart-item-name { color: var(--fg); font-weight: 500; }
+.cart-item-price { color: var(--accent); font-weight: 600; white-space: nowrap; }
+
+.cart-item-qty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cart-item-qty button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+.cart-item-qty button:hover { border-color: var(--accent); color: var(--accent); }
+.cart-item-qty span {
+  min-width: 18px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cart-item-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-decoration: underline;
+  cursor: pointer;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0 !important;
+}
+.cart-item-remove:hover { color: var(--danger); }
+
+.cart-checkout { gap: 16px; }
+
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--fg);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
 }

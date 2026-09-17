@@ -27,6 +27,15 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
+    public int? CustomerId
+    {
+        get
+        {
+            var value = User?.FindFirstValue("customer_id");
+            return int.TryParse(value, out var id) ? id : null;
+        }
+    }
+
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
 
     public IReadOnlyList<string> Roles => User?.FindAll(ClaimTypes.Role).Select(x => x.Value).ToList() ?? new List<string>();

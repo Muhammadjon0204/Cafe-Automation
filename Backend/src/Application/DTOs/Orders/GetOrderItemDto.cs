@@ -19,4 +19,8 @@ public class GetOrderItemDto
     public OrderItemStatus Status { get; set; }
 
     public string? Note { get; set; }
+
+    // Null until sent to the kitchen (see OrderService.SendToKitchenAsync). Kitchen UIs must
+    // only render items where this is set.
+    public DateTime? SentToKitchenAt { get; set; }
 }

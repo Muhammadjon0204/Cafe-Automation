@@ -9,6 +9,9 @@ export interface OrderItem {
   totalPrice: number;
   status: number;
   note: string | null;
+  // Null until the waiter has actually sent this item to the kitchen (OrderService.
+  // SendToKitchenAsync) - see KitchenPage's item filter, which must only render sent items.
+  sentToKitchenAt: string | null;
 }
 
 // Numeric Status/Type/PaymentStatus — no JsonStringEnumConverter is registered on the

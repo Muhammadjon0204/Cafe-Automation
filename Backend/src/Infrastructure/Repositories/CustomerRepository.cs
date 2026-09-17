@@ -24,6 +24,21 @@ public class CustomerRepository : ICustomerRepository
         return _context.Customers.Include(x => x.Orders).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public Task<Customer?> GetByIdentityUserIdAsync(string identityUserId, CancellationToken cancellationToken = default)
+    {
+        return _context.Customers.FirstOrDefaultAsync(x => x.IdentityUserId == identityUserId, cancellationToken);
+    }
+
+    public Task<Customer?> GetByPhoneAsync(string phone, CancellationToken cancellationToken = default)
+    {
+        return _context.Customers.FirstOrDefaultAsync(x => x.Phone == phone, cancellationToken);
+    }
+
+    public Task<Customer?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        return _context.Customers.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+    }
+
     public async Task AddAsync(Customer customer, CancellationToken cancellationToken = default)
     {
         await _context.Customers.AddAsync(customer, cancellationToken);

@@ -1,0 +1,136 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 40;
+}
+
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+.payment-modal-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  padding: var(--space-4);
+}
+
+.payment-modal-items {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.payment-modal-totals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: 10px;
+  background: var(--color-bg-2);
+}
+.payment-modal-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-fg);
+}
+.payment-modal-total-row.is-muted {
+  color: var(--color-muted);
+}
+.payment-modal-total-row.is-remaining {
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--color-border);
+}
+
+.payment-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.payment-modal-field input {
+  font: inherit;
+  font-size: var(--font-size-md);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.payment-modal-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.payment-method-btn {
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-fg);
+  cursor: pointer;
+}
+.payment-method-btn.is-selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.payment-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+.payment-modal-cancel {
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.payment-modal-cancel:hover {
+  color: var(--color-fg);
+}
+.payment-modal-submit {
+  font: inherit;
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  border: none;
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  cursor: pointer;
+}
+.payment-modal-submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+.payment-modal-submit:disabled {
+  opacity: .6;
+  cursor: default;
+}

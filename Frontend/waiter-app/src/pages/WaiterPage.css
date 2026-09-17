@@ -17,6 +17,22 @@
   color: var(--color-muted);
 }
 
+.waiter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.waiter-summary-item {
+  font-weight: 600;
+}
+
 .waiter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
@@ -72,6 +88,10 @@
   color: var(--color-muted);
   background: var(--color-bg-2);
 }
+.waiter-card-status-badge.is-free {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
 .waiter-card-status-badge.is-occupied {
   color: var(--color-accent-2);
   background: var(--color-accent-2-bg);
@@ -81,6 +101,10 @@
   background: var(--color-info-bg);
 }
 .waiter-card-status-badge.is-cleaning {
+  color: var(--color-warn);
+  background: var(--color-warn-bg);
+}
+.waiter-card-status-badge.is-disabled {
   color: var(--color-muted);
   background: var(--color-bg-2);
 }
@@ -111,6 +135,12 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--color-warn);
+}
+
+.waiter-card-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-info);
 }
 
 .waiter-card-serve-btn {

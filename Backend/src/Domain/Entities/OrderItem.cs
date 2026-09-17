@@ -22,4 +22,10 @@ public class OrderItem : AuditableEntity
     public OrderItemStatus Status { get; set; }
 
     public string? Note { get; set; }
+
+    // Null until this item has actually been pushed to the kitchen's working queue (the
+    // order's initial SendToKitchenAsync promotion, or a later "send pending items" call for
+    // an item added after that). Kitchen-facing views must only render items where this is
+    // set - the item existing on the order is not the same as the kitchen having seen it.
+    public DateTime? SentToKitchenAt { get; set; }
 }

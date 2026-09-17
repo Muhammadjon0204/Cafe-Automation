@@ -1,10 +1,25 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getOrders, openTable, updateOrderStatus, type Order } from '../api/ordersApi';
-import { getTables } from '../api/tablesApi';
-import { minutesAgoLabel, orderItemsLabel } from '../domain/orders';
+import { getTables, type WaiterTable } from '../api/tablesApi';
+import {
+  isDraftOrder,
+  occupiedSinceLabel,
+  orderItemsLabel,
+  reservationCountdownLabel,
+  timeOfDayLabel,
+  TABLE_STATUS_META,
+  TABLE_FREE,
+  TABLE_OCCUPIED,
+  TABLE_RESERVED,
+  TABLE_CLEANING,
+  TABLE_DISABLED,
+  waitingLabel,
+} from '../domain/orders';
 import { useAuth } from '../auth/AuthContext';
-import { DishPickerModal } from './DishPickerModal';
+import { TableActionsModal } from './TableActionsModal';
+import { ReservationFormModal } from './ReservationFormModal';
+import { TablePanel } from './TablePanel';
 import { ErrorRetry } from '../components/ErrorRetry';
 import { Skeleton } from '../components/Skeleton';
 import { pushToast } from '../components/toast/toastBus';
@@ -16,19 +31,14 @@ import './WaiterPage.css';
 // shell. Keep the two in sync by hand if either changes.
 const TABLES_QUERY_KEY = ['tables', 'waiter'];
 const ORDERS_QUERY_KEY = ['orders', 'waiter'];
-const FREE_STATUS = 1;
-const OCCUPIED_STATUS = 2;
 const READY_STATUS = 4;
 const SERVED_STATUS = 5;
 const PAID_STATUS = 3;
 
-const TABLE_STATUS_META: Record<number, { label: string; className: string }> = {
-  1: { label: 'Свободен', className: 'is-free' },
-  2: { label: 'Занят', className: 'is-occupied' },
-  3: { label: 'Бронь', className: 'is-reserved' },
-  4: { label: 'Уборка', className: 'is-cleaning' },
-  5: { label: 'Недоступен', className: 'is-disabled' },
-};
+type ActiveModal =
+  | { type: 'actions'; table: WaiterTable }
+  | { type: 'reserve'; table: WaiterTable }
+  | { type: 'panel'; table: WaiterTable };
 
 // getOrders is auto-scoped server-side to the caller's own WaiterId for the Waiter
 // role (see OrderService.GetAllAsync) — Admin/Manager viewing this page see every
@@ -36,7 +46,7 @@ const TABLE_STATUS_META: Record<number, { label: string; className: string }> = 
 export function WaiterPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [picker, setPicker] = useState<{ tableNumber: number; orderId: number } | null>(null);
+  const [modal, setModal] = useState<ActiveModal | null>(null);
 
   const tablesQuery = useQuery({ queryKey: TABLES_QUERY_KEY, queryFn: getTables });
   // Realtime hub (Shell) is the primary update path for both queries below — the
@@ -70,6 +80,11 @@ export function WaiterPage() {
       });
   }, [tables, orderByTableId]);
 
+  // Keep the currently-open panel's table/order in sync with the latest fetch (a status/item
+  // change elsewhere — SignalR, another waiter — must be reflected live, not just on reopen).
+  const panelTable = modal?.type === 'panel' ? (tables.find((t) => t.id === modal.table.id) ?? modal.table) : null;
+  const panelOrder = panelTable ? (orderByTableId.get(panelTable.id) ?? null) : null;
+
   const serveMutation = useMutation({
     mutationFn: (id: number) => updateOrderStatus(id, SERVED_STATUS),
     onMutate: async (id) => {
@@ -95,13 +110,15 @@ export function WaiterPage() {
   // toast + refetch below is the project's standing 409 convention.
   const openTableMutation = useMutation({
     mutationFn: (tableId: number) => openTable({ cafeTableId: tableId, waiterId: user?.staffMemberId ?? undefined }),
-    onSuccess: (result) => {
-      setPicker({ tableNumber: result.order.tableNumber ?? 0, orderId: result.order.id });
+    onSuccess: (result, tableId) => {
       if (result.warning) {
         pushToast(result.warning, { variant: 'info' });
       }
       void queryClient.invalidateQueries({ queryKey: TABLES_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY });
+      const table = tables.find((t) => t.id === tableId);
+      if (table) setModal({ type: 'panel', table });
+      else setModal(null);
     },
     onError: (error) => {
       pushToast(errorMessage(error, 'Не удалось открыть стол.'), { variant: 'error' });
@@ -109,17 +126,16 @@ export function WaiterPage() {
     },
   });
 
-  function handleCardClick(tableId: number, tableNumber: number, status: number, order: Order | null) {
-    if (status === FREE_STATUS) {
-      if (!openTableMutation.isPending) {
-        openTableMutation.mutate(tableId);
-      }
+  // Table and order are separate concerns (TZ 1) — opening the panel never itself creates
+  // anything. A Free table only ever offers an explicit choice (Занять / Забронировать); every
+  // other status opens the panel straight away.
+  function handleCardClick(table: WaiterTable) {
+    if (table.status === TABLE_DISABLED) return;
+    if (table.status === TABLE_FREE) {
+      setModal({ type: 'actions', table });
       return;
     }
-
-    if (status === OCCUPIED_STATUS && order) {
-      setPicker({ tableNumber, orderId: order.id });
-    }
+    setModal({ type: 'panel', table });
   }
 
   if (tablesQuery.isLoading || ordersQuery.isLoading) {
@@ -144,12 +160,33 @@ export function WaiterPage() {
     return <ErrorRetry message="Не удалось загрузить заказы." onRetry={() => ordersQuery.refetch()} />;
   }
 
+  const counts = tables.reduce(
+    (acc, t) => {
+      if (t.status === TABLE_FREE) acc.free += 1;
+      else if (t.status === TABLE_OCCUPIED) acc.occupied += 1;
+      else if (t.status === TABLE_CLEANING) acc.cleaning += 1;
+      else if (t.status === TABLE_RESERVED) acc.reserved += 1;
+      return acc;
+    },
+    { free: 0, occupied: 0, cleaning: 0, reserved: 0 },
+  );
+
   return (
     <div className="waiter-page">
       <div className="waiter-page-title">
         <h1>Мои столы</h1>
         <p>Столы с готовым заказом поднимаются наверх — заберите и подайте.</p>
       </div>
+
+      {tables.length > 0 && (
+        <div className="waiter-summary">
+          <span>{tables.length} столов</span>
+          <span className="waiter-summary-item is-free">🟢 {counts.free} свободны</span>
+          <span className="waiter-summary-item is-occupied">🟠 {counts.occupied} заняты</span>
+          <span className="waiter-summary-item is-cleaning">🟡 {counts.cleaning} убираются</span>
+          <span className="waiter-summary-item is-reserved">🔵 {counts.reserved} бронь</span>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <p className="empty-state">Столов пока нет.</p>
@@ -158,29 +195,41 @@ export function WaiterPage() {
           {rows.map(({ table, order }) => {
             const statusMeta = TABLE_STATUS_META[table.status] ?? { label: '—', className: '' };
             const isReady = order?.status === READY_STATUS;
-            const isServedUnpaid = order?.status === SERVED_STATUS && order.paymentStatus !== PAID_STATUS;
-            const isOpening = openTableMutation.isPending && openTableMutation.variables === table.id;
-            const isClickable = table.status === FREE_STATUS || (table.status === OCCUPIED_STATUS && order != null);
+            const isServedUnpaid = order?.status === SERVED_STATUS && order.paymentStatus !== PAID_STATUS && order.totalAmount > 0;
+            const isClickable = table.status !== TABLE_DISABLED;
+            const draft = isDraftOrder(order);
             return (
               <div
                 className={`waiter-card ${statusMeta.className} ${isReady ? 'is-ready' : ''} ${isClickable ? 'is-clickable' : ''}`}
                 key={table.id}
                 role={isClickable ? 'button' : undefined}
                 tabIndex={isClickable ? 0 : undefined}
-                onClick={isClickable ? () => handleCardClick(table.id, table.tableNumber, table.status, order) : undefined}
+                onClick={isClickable ? () => handleCardClick(table) : undefined}
               >
                 <div className="waiter-card-header">
                   <span className="waiter-card-table">Стол {table.tableNumber}</span>
                   <span className={`waiter-card-status-badge ${statusMeta.className}`}>{statusMeta.label}</span>
                 </div>
 
-                {order ? (
+                {table.status === TABLE_RESERVED && table.upcomingReservation ? (
+                  <>
+                    <p className="waiter-card-items">
+                      {timeOfDayLabel(table.upcomingReservation.reservedAt)} · {table.upcomingReservation.customerName} · {table.upcomingReservation.guestsCount} гостей
+                    </p>
+                    <p className="waiter-card-hint">{reservationCountdownLabel(table.upcomingReservation.reservedAt)}</p>
+                  </>
+                ) : order ? (
                   <>
                     <p className="waiter-card-items">{orderItemsLabel(order.items)}</p>
-                    <div className="waiter-card-meta">
-                      <span>{order.orderNumber}</span>
-                      <span>{minutesAgoLabel(order.orderedAt)}</span>
-                    </div>
+                    {draft ? (
+                      <p className="waiter-card-meta">
+                        <span>{order.items.length === 0 ? 'Заказ пока не создан' : 'Черновик — не отправлено'}</span>
+                      </p>
+                    ) : (
+                      <div className="waiter-card-meta">
+                        <span>{waitingLabel(order.orderedAt)}</span>
+                      </div>
+                    )}
                     {isServedUnpaid && <p className="waiter-card-note">Подан · ожидает оплаты</p>}
                     {isReady && (
                       <button
@@ -196,8 +245,20 @@ export function WaiterPage() {
                       </button>
                     )}
                   </>
-                ) : table.status === FREE_STATUS ? (
-                  <p className="waiter-card-empty">{table.seatsCount} мест · {isOpening ? 'Открываем...' : 'Открыть стол'}</p>
+                ) : table.status === TABLE_FREE ? (
+                  <>
+                    <p className="waiter-card-empty">{table.seatsCount} мест</p>
+                    {table.upcomingReservation && (
+                      <p className="waiter-card-hint">Бронь сегодня в {timeOfDayLabel(table.upcomingReservation.reservedAt)}</p>
+                    )}
+                  </>
+                ) : table.status === TABLE_CLEANING ? (
+                  <p className="waiter-card-empty">Подготовьте стол</p>
+                ) : table.status === TABLE_OCCUPIED ? (
+                  <>
+                    <p className="waiter-card-empty">{table.seatsCount} мест</p>
+                    {occupiedSinceLabel(table.updatedAt) && <p className="waiter-card-meta">{occupiedSinceLabel(table.updatedAt)}</p>}
+                  </>
                 ) : (
                   <p className="waiter-card-empty">{table.seatsCount} мест</p>
                 )}
@@ -207,13 +268,28 @@ export function WaiterPage() {
         </div>
       )}
 
-      {picker && (
-        <DishPickerModal
-          tableNumber={picker.tableNumber}
-          orderId={picker.orderId}
-          onClose={() => setPicker(null)}
+      {modal?.type === 'actions' && (
+        <TableActionsModal
+          tableNumber={modal.table.tableNumber}
+          seatsCount={modal.table.seatsCount}
+          isOpening={openTableMutation.isPending}
+          onOpenTable={() => openTableMutation.mutate(modal.table.id)}
+          onReserve={() => setModal({ type: 'reserve', table: modal.table })}
+          onClose={() => setModal(null)}
         />
       )}
+
+      {modal?.type === 'reserve' && (
+        <ReservationFormModal
+          tableId={modal.table.id}
+          tableNumber={modal.table.tableNumber}
+          tableStatus={modal.table.status}
+          onClose={() => setModal(null)}
+          onCreated={() => setModal(null)}
+        />
+      )}
+
+      {modal?.type === 'panel' && panelTable && <TablePanel table={panelTable} order={panelOrder} onClose={() => setModal(null)} />}
     </div>
   );
 }

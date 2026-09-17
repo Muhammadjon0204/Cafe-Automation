@@ -1,0 +1,217 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 40;
+}
+
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+
+/* Small centered modals (TableActionsModal, ReservationFormModal) */
+
+.table-actions-card,
+.reservation-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  padding: var(--space-4);
+}
+.reservation-form-card {
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.table-actions-subtitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+.table-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.table-actions-btn {
+  font: inherit;
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  padding: var(--space-3);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-fg);
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.table-actions-btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+.table-actions-btn:disabled {
+  opacity: .6;
+  cursor: default;
+}
+.table-actions-btn.is-primary {
+  color: var(--color-accent-fg);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.table-actions-btn.is-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+.table-actions-btn.is-danger {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+  border-color: transparent;
+}
+
+.table-actions-cancel {
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  align-self: center;
+}
+.table-actions-cancel:hover {
+  color: var(--color-fg);
+}
+
+/* Reservation form */
+
+.reservation-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.reservation-form-row {
+  display: flex;
+  gap: var(--space-3);
+}
+.reservation-form-row .reservation-form-field {
+  flex: 1;
+}
+.reservation-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+.reservation-form-field input {
+  font: inherit;
+  font-size: var(--font-size-md);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+.reservation-form-warning {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-warn);
+  background: var(--color-warn-bg);
+  border-radius: 10px;
+}
+.reservation-form-error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+.reservation-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* Side panel (TablePanel) */
+
+.side-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .4);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 40;
+}
+
+.side-panel {
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  background: var(--color-card);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.side-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.side-panel-header-title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.side-panel-close {
+  font: inherit;
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  color: var(--color-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1);
+}
+.side-panel-close:hover {
+  color: var(--color-fg);
+}
+
+.side-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.side-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.side-panel-section-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--color-muted);
+}

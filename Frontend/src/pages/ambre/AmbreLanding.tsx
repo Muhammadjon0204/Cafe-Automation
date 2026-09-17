@@ -1,8 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react';
 import { TRANSLATIONS } from './data';
 import type { Lang } from './types';
-import { ArrowIcon, MenuIcon, MoonIcon, SunIcon } from './icons';
+import { ArrowIcon, CartIcon, MenuIcon, MoonIcon, SunIcon, UserIcon } from './icons';
 import { useThemeTransition, ApiError } from '@cafe/shared';
+import { useAuth } from '../../auth/AuthContext';
+import { AuthModal } from './AuthModal';
+import { AccountPanel } from './AccountPanel';
+import { CartDrawer, type CartLine } from './CartDrawer';
 import {
   getBookableTables,
   getMenuCategories,
@@ -60,6 +64,39 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
   const [reservationError, setReservationError] = useState<string | null>(null);
   const [reservationDone, setReservationDone] = useState(false);
 
+  const { customer, requireAuth, openAuthModal } = useAuth();
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
+
+  const addToCart = useCallback((dish: ApiDish) => {
+    setCart((current) => {
+      const existing = current.find((l) => l.dish.id === dish.id);
+      if (existing) {
+        return current.map((l) => (l.dish.id === dish.id ? { ...l, quantity: l.quantity + 1 } : l));
+      }
+      return [...current, { dish, quantity: 1 }];
+    });
+    setCartOpen(true);
+  }, []);
+
+  const incrementCartItem = useCallback((dishId: number) => {
+    setCart((current) => current.map((l) => (l.dish.id === dishId ? { ...l, quantity: l.quantity + 1 } : l)));
+  }, []);
+
+  const decrementCartItem = useCallback((dishId: number) => {
+    setCart((current) =>
+      current
+        .map((l) => (l.dish.id === dishId ? { ...l, quantity: l.quantity - 1 } : l))
+        .filter((l) => l.quantity > 0),
+    );
+  }, []);
+
+  const removeCartItem = useCallback((dishId: number) => {
+    setCart((current) => current.filter((l) => l.dish.id !== dishId));
+  }, []);
+
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
     update();
@@ -107,6 +144,15 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
       .catch((error: unknown) => setTablesError(error instanceof ApiError ? error.message : 'Не удалось загрузить столы.'));
   }, []);
 
+  // Pre-fills the booking form's name from the account once logged in (phone isn't part of
+  // /auth/me's response, so that field stays manual) - doesn't overwrite anything the guest
+  // already typed before signing in.
+  useEffect(() => {
+    if (customer && !reservationName) {
+      setReservationName(customer.fullName);
+    }
+  }, [customer, reservationName]);
+
   const t = TRANSLATIONS[lang];
 
   const dishes = useMemo(() => allDishes.filter((dish) => dish.categoryId === activeCat), [allDishes, activeCat]);
@@ -134,28 +180,33 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
         return;
       }
 
-      setReservationSubmitting(true);
-      setReservationError(null);
-      submitReservation({
-        cafeTableId: reservationTableId,
-        customerName: reservationName,
-        phone: reservationPhone || undefined,
-        guestsCount: reservationGuests,
-        reservedAt: reservationWhen,
-        note: reservationNote || undefined,
-      })
-        .then(() => {
-          setReservationDone(true);
-          setReservationName('');
-          setReservationPhone('');
-          setReservationNote('');
+      const doSubmit = () => {
+        setReservationSubmitting(true);
+        setReservationError(null);
+        submitReservation({
+          cafeTableId: reservationTableId,
+          customerName: reservationName,
+          phone: reservationPhone || undefined,
+          guestsCount: reservationGuests,
+          reservedAt: reservationWhen,
+          note: reservationNote || undefined,
         })
-        .catch((error: unknown) => {
-          setReservationError(error instanceof ApiError ? error.message : 'Не удалось создать бронь.');
-        })
-        .finally(() => setReservationSubmitting(false));
+          .then(() => {
+            setReservationDone(true);
+            setReservationNote('');
+          })
+          .catch((error: unknown) => {
+            setReservationError(error instanceof ApiError ? error.message : 'Не удалось создать бронь.');
+          })
+          .finally(() => setReservationSubmitting(false));
+      };
+
+      // Booking now requires an account (client-app auth gate) - a guest gets the
+      // login/registration modal instead, and the booking above fires automatically once
+      // they're signed in.
+      requireAuth('reserve', doSubmit);
     },
-    [reservationTableId, reservationWhen, reservationName, reservationPhone, reservationGuests, reservationNote],
+    [reservationTableId, reservationWhen, reservationName, reservationPhone, reservationGuests, reservationNote, requireAuth],
   );
 
   const rootClassName = ['app', isDark ? 'theme-dark' : ''].filter(Boolean).join(' ');
@@ -212,6 +263,27 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
             >
               {isDark ? <SunIcon /> : <MoonIcon />}
             </button>
+
+            <button type="button" className="icon-btn cart-trigger" aria-label="Корзина" onClick={() => setCartOpen(true)}>
+              <CartIcon />
+              {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+            </button>
+
+            {customer ? (
+              <button type="button" className="account-pill" onClick={() => setAccountOpen(true)}>
+                <UserIcon />
+                <span>{customer.fullName.split(' ')[0] || customer.email}</span>
+              </button>
+            ) : (
+              <div className="auth-actions">
+                <button type="button" className="btn btn-outline auth-actions-btn" onClick={() => openAuthModal(null, 'login')}>
+                  Войти
+                </button>
+                <button type="button" className="btn btn-primary auth-actions-btn" onClick={() => openAuthModal(null, 'register')}>
+                  Регистрация
+                </button>
+              </div>
+            )}
 
             {isMobile && (
               <button type="button" className="icon-btn" aria-label="Menu" onClick={() => setMenuOpen((v) => !v)}>
@@ -331,6 +403,9 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
                           <span className="dish-price">{currencyFormatter.format(dish.price)}</span>
                         </div>
                         {dish.description && <p className="dish-desc">{dish.description}</p>}
+                        <button type="button" className="btn btn-outline dish-add-btn" onClick={() => addToCart(dish)}>
+                          В корзину
+                        </button>
                       </div>
                     </article>
                   ))}
@@ -435,6 +510,19 @@ export function AmbreLanding({ show3d = true }: AmbreLandingProps) {
           <span>{t.footerRights}</span>
         </div>
       </footer>
+
+      <AuthModal />
+      {accountOpen && <AccountPanel onClose={() => setAccountOpen(false)} />}
+      {cartOpen && (
+        <CartDrawer
+          lines={cart}
+          onClose={() => setCartOpen(false)}
+          onIncrement={incrementCartItem}
+          onDecrement={decrementCartItem}
+          onRemove={removeCartItem}
+          onOrderPlaced={() => setCart([])}
+        />
+      )}
     </div>
   );
 }

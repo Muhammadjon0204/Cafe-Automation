@@ -9,6 +9,8 @@ public interface IAuthService
 
     Task<Result<AuthResponseDto>> RegisterAsync(RegisterUserDto dto, CancellationToken cancellationToken = default);
 
+    Task<Result<AuthResponseDto>> RegisterClientAsync(RegisterCustomerDto dto, CancellationToken cancellationToken = default);
+
     Task<Result<AuthResponseDto>> RefreshTokenAsync(RefreshTokenDto dto, CancellationToken cancellationToken = default);
 
     Task<Result> LogoutAsync(RefreshTokenDto dto, CancellationToken cancellationToken = default);

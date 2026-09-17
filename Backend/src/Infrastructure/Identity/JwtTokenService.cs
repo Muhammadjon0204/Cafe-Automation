@@ -17,7 +17,7 @@ public class JwtTokenService : ITokenService
         _jwtSettings = jwtOptions.Value;
     }
 
-    public Task<string> GenerateAccessTokenAsync(string userId, string email, string fullName, int? staffMemberId, IList<string> roles, CancellationToken cancellationToken = default)
+    public Task<string> GenerateAccessTokenAsync(string userId, string email, string fullName, int? staffMemberId, int? customerId, IList<string> roles, CancellationToken cancellationToken = default)
     {
         var claims = new List<Claim>
         {
@@ -32,6 +32,11 @@ public class JwtTokenService : ITokenService
         if (staffMemberId.HasValue)
         {
             claims.Add(new Claim("staff_member_id", staffMemberId.Value.ToString()));
+        }
+
+        if (customerId.HasValue)
+        {
+            claims.Add(new Claim("customer_id", customerId.Value.ToString()));
         }
 
         foreach (var role in roles)

@@ -168,6 +168,10 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("IdentityUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -199,6 +203,10 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique()
                         .HasFilter("\"Email\" IS NOT NULL AND \"IsDeleted\" = false");
+
+                    b.HasIndex("IdentityUserId")
+                        .IsUnique()
+                        .HasFilter("\"IdentityUserId\" IS NOT NULL AND \"IsDeleted\" = false");
 
                     b.HasIndex("IsDeleted");
 
@@ -386,6 +394,10 @@ namespace Infrastructure.Migrations
                     b.Property<int?>("CustomerId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("DeliveryAddress")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<decimal>("DiscountAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -518,6 +530,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("bytea");
 
+                    b.Property<DateTime?>("SentToKitchenAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -628,6 +643,9 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("CustomerId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -636,7 +654,7 @@ namespace Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<int>("StaffMemberId")
+                    b.Property<int?>("StaffMemberId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Token")
@@ -646,6 +664,8 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomerId");
+
                     b.HasIndex("ExpiresAt");
 
                     b.HasIndex("StaffMemberId");
@@ -653,7 +673,10 @@ namespace Infrastructure.Migrations
                     b.HasIndex("Token")
                         .IsUnique();
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RefreshTokens_ExactlyOneOwner", "(\"StaffMemberId\" IS NOT NULL AND \"CustomerId\" IS NULL) OR (\"StaffMemberId\" IS NULL AND \"CustomerId\" IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Cafe.Domain.Entities.Reservation", b =>
@@ -1231,11 +1254,17 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Cafe.Domain.Entities.RefreshToken", b =>
                 {
+                    b.HasOne("Cafe.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("Cafe.Domain.Entities.StaffMember", "StaffMember")
                         .WithMany()
                         .HasForeignKey("StaffMemberId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Customer");
 
                     b.Navigation("StaffMember");
                 });

@@ -119,7 +119,7 @@ export function WaiterPage() {
           {rows.map(({ table, order }) => {
             const statusMeta = TABLE_STATUS_META[table.status] ?? { label: '—', className: '' };
             const isReady = order?.status === READY_STATUS;
-            const isServedUnpaid = order?.status === SERVED_STATUS && order.paymentStatus !== PAID_STATUS;
+            const isServedUnpaid = order?.status === SERVED_STATUS && order.paymentStatus !== PAID_STATUS && order.totalAmount > 0;
             return (
               <div className={`waiter-card ${statusMeta.className} ${isReady ? 'is-ready' : ''}`} key={table.id}>
                 <div className="waiter-card-header">

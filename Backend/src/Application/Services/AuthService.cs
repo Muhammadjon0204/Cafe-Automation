@@ -95,6 +95,47 @@ public class AuthService : IAuthService
         return await CreateAuthResponseAsync(registerResult.Data, cancellationToken);
     }
 
+    public async Task<Result<AuthResponseDto>> RegisterClientAsync(RegisterCustomerDto dto, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email))
+        {
+            return Result<AuthResponseDto>.Failure("Email is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Password))
+        {
+            return Result<AuthResponseDto>.Failure("Password is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.FirstName))
+        {
+            return Result<AuthResponseDto>.Failure("First name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.LastName))
+        {
+            return Result<AuthResponseDto>.Failure("Last name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.Phone))
+        {
+            return Result<AuthResponseDto>.Failure("Phone is required.");
+        }
+
+        dto.Email = dto.Email.Trim();
+        dto.FirstName = dto.FirstName.Trim();
+        dto.LastName = dto.LastName.Trim();
+        dto.Phone = dto.Phone.Trim();
+
+        var registerResult = await _identityService.RegisterCustomerAsync(dto, cancellationToken);
+        if (!registerResult.IsSuccess || registerResult.Data == null)
+        {
+            return Result<AuthResponseDto>.Failure(registerResult.Message, registerResult.Errors);
+        }
+
+        return await CreateAuthResponseAsync(registerResult.Data, cancellationToken);
+    }
+
     public async Task<Result<AuthResponseDto>> RefreshTokenAsync(RefreshTokenDto dto, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(dto.RefreshToken))
@@ -108,12 +149,13 @@ public class AuthService : IAuthService
             return Result<AuthResponseDto>.Failure("Refresh token is invalid or expired.");
         }
 
-        if (existing.StaffMember == null || existing.StaffMember.IdentityUserId == null)
+        var ownerIdentityUserId = existing.StaffMember?.IdentityUserId ?? existing.Customer?.IdentityUserId;
+        if (ownerIdentityUserId == null)
         {
             return Result<AuthResponseDto>.Failure("Refresh token is invalid or expired.");
         }
 
-        var userInfoResult = await _identityService.GetUserInfoAsync(existing.StaffMember.IdentityUserId, cancellationToken);
+        var userInfoResult = await _identityService.GetUserInfoAsync(ownerIdentityUserId, cancellationToken);
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
         {
             return Result<AuthResponseDto>.Failure(userInfoResult.Message, userInfoResult.Errors);
@@ -184,6 +226,7 @@ public class AuthService : IAuthService
             Email = userInfoResult.Data.Email,
             FullName = userInfoResult.Data.FullName,
             StaffMemberId = userInfoResult.Data.StaffMemberId,
+            CustomerId = userInfoResult.Data.CustomerId,
             Roles = roles.ToList()
         };
 
@@ -198,6 +241,7 @@ public class AuthService : IAuthService
             user.Email,
             user.FullName,
             user.StaffMemberId,
+            user.CustomerId,
             roles,
             cancellationToken);
 
@@ -211,6 +255,19 @@ public class AuthService : IAuthService
                 Token = refreshTokenValue,
                 StaffMemberId = user.StaffMemberId.Value,
                 ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays),
+                IsRevoked = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _refreshTokenRepository.AddAsync(refreshToken, cancellationToken);
+        }
+        else if (user.CustomerId.HasValue)
+        {
+            var refreshToken = new RefreshToken
+            {
+                Token = refreshTokenValue,
+                CustomerId = user.CustomerId.Value,
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.ClientRefreshTokenDays),
                 IsRevoked = false,
                 CreatedAt = DateTime.UtcNow
             };

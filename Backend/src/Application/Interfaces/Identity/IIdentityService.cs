@@ -7,6 +7,8 @@ public interface IIdentityService
 {
     Task<Result<UserInfoDto>> RegisterAsync(RegisterUserDto dto, CancellationToken cancellationToken = default);
 
+    Task<Result<UserInfoDto>> RegisterCustomerAsync(RegisterCustomerDto dto, CancellationToken cancellationToken = default);
+
     Task<Result<UserInfoDto>> LoginAsync(LoginDto dto, CancellationToken cancellationToken = default);
 
     Task<Result> ChangePasswordAsync(string userId, ChangePasswordDto dto, CancellationToken cancellationToken = default);

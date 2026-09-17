@@ -24,6 +24,8 @@ public class GetOrderDto
 
     public int? TableNumber { get; set; }
 
+    public string? DeliveryAddress { get; set; }
+
     public int? WaiterId { get; set; }
 
     public string? WaiterName { get; set; }

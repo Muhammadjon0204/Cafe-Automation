@@ -12,6 +12,7 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.IdentityUserId).HasMaxLength(450);
         builder.Property(x => x.FirstName).HasMaxLength(100);
         builder.Property(x => x.LastName).HasMaxLength(100);
         builder.Property(x => x.Phone).HasMaxLength(30);
@@ -40,6 +41,9 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.HasIndex(x => x.Email)
             .IsUnique()
             .HasFilter("\"Email\" IS NOT NULL AND \"IsDeleted\" = false");
+        builder.HasIndex(x => x.IdentityUserId)
+            .IsUnique()
+            .HasFilter("\"IdentityUserId\" IS NOT NULL AND \"IsDeleted\" = false");
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.RegisteredAt);
         builder.HasIndex(x => x.IsDeleted);
