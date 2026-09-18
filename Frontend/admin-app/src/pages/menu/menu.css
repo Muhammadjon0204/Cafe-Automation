@@ -271,10 +271,9 @@
 /* Category columns board */
 
 .menu-columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
-  gap: var(--space-5) var(--space-4);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
 }
 
 .menu-column {
@@ -313,9 +312,9 @@
   display: flex;
 }
 .menu-column-cards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--space-3);
 }
 
 /* Dish card */
@@ -326,8 +325,15 @@
   border-radius: var(--admin-radius-md);
   border: 1px solid var(--admin-border);
   background: var(--admin-surface);
-  overflow: hidden;
+  overflow: visible;
   transition: border-color 160ms ease;
+}
+.dish-card:has(.item-actions-menu) {
+  position: relative;
+  z-index: 10;
+}
+.dish-card-media {
+  overflow: hidden;
 }
 .dish-card:hover {
   border-color: var(--admin-border-strong);

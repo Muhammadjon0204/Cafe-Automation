@@ -8,10 +8,18 @@ namespace Cafe.Application.Services.Dishes.Specifications;
 
 public class DishFilterSpecification : BaseSpecification<Dish>
 {
-    public DishFilterSpecification(DishFilterDto filter)
-        : base(BuildCriteria(filter))
+    public DishFilterSpecification(DishFilterDto filter, bool includeDeleted = false)
+        : base(BuildCriteria(filter, includeDeleted))
     {
         AddInclude(x => x.Category);
+
+        // Dish.HasQueryFilter(x => !x.IsDeleted) (DishConfiguration) applies to every query
+        // against the DbSet regardless of Criteria above - without this, an admin "include
+        // archived" request still silently came back with archived dishes stripped out.
+        if (includeDeleted)
+        {
+            ApplyIgnoreQueryFilters();
+        }
 
         ApplyOrderBy(x => x.Name);
 
@@ -20,12 +28,12 @@ public class DishFilterSpecification : BaseSpecification<Dish>
         ApplyPaging((pageNumber - 1) * pageSize, pageSize);
     }
 
-    private static Expression<Func<Dish, bool>> BuildCriteria(DishFilterDto filter)
+    private static Expression<Func<Dish, bool>> BuildCriteria(DishFilterDto filter, bool includeDeleted)
     {
         var search = string.IsNullOrWhiteSpace(filter.Search) ? null : filter.Search.Trim().ToLower();
 
         return x =>
-            !x.IsDeleted &&
+            (includeDeleted || !x.IsDeleted) &&
             (search == null ||
                 x.Name.ToLower().Contains(search) ||
                 (x.Description != null && x.Description.ToLower().Contains(search)) ||

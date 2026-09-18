@@ -12,6 +12,7 @@ interface DishCardProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onArchive: () => void;
+  onRestore: () => void;
 }
 
 /** Compact card for one dish inside a category column (see MenuCategoryColumn) —
@@ -27,6 +28,7 @@ export function DishCard({
   onEdit,
   onDuplicate,
   onArchive,
+  onRestore,
 }: DishCardProps) {
   const state = classifyDishState(dish);
   // Draft/Inactive are meaningful curation states distinct from IsAvailable —
@@ -81,7 +83,15 @@ export function DishCard({
             </span>
           )}
 
-          {canManage && <MenuItemActions dish={dish} onEdit={onEdit} onDuplicate={onDuplicate} onArchive={onArchive} />}
+          {canManage && (
+            <MenuItemActions
+              dish={dish}
+              onEdit={onEdit}
+              onDuplicate={onDuplicate}
+              onArchive={onArchive}
+              onRestore={onRestore}
+            />
+          )}
         </div>
       </div>
     </article>

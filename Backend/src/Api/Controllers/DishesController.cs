@@ -96,6 +96,14 @@ public class DishesController : ControllerBase
         return result.ToActionResult();
     }
 
+    [HttpPost("{id:int}/restore")]
+    [Authorize(Roles = RolePolicies.AdminManager)]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        var result = await _dishService.RestoreAsync(id, cancellationToken);
+        return result.ToActionResult();
+    }
+
     // Simple upload, not a full asset-management flow (same approach as
     // ZonesController.UploadBackground): saves under wwwroot/uploads/dishes and hands back
     // the resulting relative URL. Not id-scoped like the zone background upload — a dish photo

@@ -36,7 +36,7 @@ const STATUS_META: Record<number, { label: string; tone: 'good' | 'warn' | 'canc
   4: { label: 'Уволен', tone: 'cancel' },
 };
 
-const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'TJS', maximumFractionDigits: 0 });
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export function StaffPage() {

@@ -7,13 +7,14 @@ interface MenuItemActionsProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onArchive: () => void;
+  onRestore: () => void;
 }
 
 /** Single discreet ⋯ menu replacing the old permanent "Изменить"/"Архивировать"
  * button pair — same outside-click pattern as StatusFilterDropdown/UserMenu.
  * Archiving is destructive (real soft-delete, see menuApi.archiveDish) and is
  * visually separated at the bottom, never styled like the other two actions. */
-export function MenuItemActions({ dish, onEdit, onDuplicate, onArchive }: MenuItemActionsProps) {
+export function MenuItemActions({ dish, onEdit, onDuplicate, onArchive, onRestore }: MenuItemActionsProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const isArchived = dish.status === DISH_STATUS.Archived;
@@ -75,7 +76,19 @@ export function MenuItemActions({ dish, onEdit, onDuplicate, onArchive }: MenuIt
           >
             Дублировать
           </button>
-          {!isArchived && (
+          {isArchived ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="item-actions-item"
+              onClick={() => {
+                setOpen(false);
+                onRestore();
+              }}
+            >
+              Восстановить
+            </button>
+          ) : (
             <>
               <div className="item-actions-divider" />
               <button

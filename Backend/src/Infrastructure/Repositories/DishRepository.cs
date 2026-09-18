@@ -32,6 +32,11 @@ public class DishRepository : IDishRepository
         return _context.Dishes.Include(x => x.Category).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public Task<Dish?> GetByIdIncludingDeletedAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return _context.Dishes.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
     public async Task AddAsync(Dish dish, CancellationToken cancellationToken = default)
     {
         await _context.Dishes.AddAsync(dish, cancellationToken);

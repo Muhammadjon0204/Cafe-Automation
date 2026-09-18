@@ -21,7 +21,7 @@ import './CashierPage.css';
 const ORDERS_QUERY_KEY = ['orders', 'cashier'];
 const TABLES_QUERY_KEY = ['tables', 'cashier'];
 const RECENTLY_CLOSED_LIMIT = 15;
-const currencyFormatter = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'TJS', maximumFractionDigits: 0 });
 
 export function CashierPage() {
   const queryClient = useQueryClient();
@@ -129,7 +129,7 @@ export function CashierPage() {
                   {isUrgent && <p className="cashier-card-urgent-flag">⚠ Гости ушли</p>}
                   <div className="cashier-card-header">
                     <span className="cashier-card-table">{orderTableLabel(order)}</span>
-                    <span className="cashier-card-amount">{currencyFormatter.format(order.totalAmount)} ₽</span>
+                    <span className="cashier-card-amount">{currencyFormatter.format(order.totalAmount)}</span>
                   </div>
                   <p className="cashier-card-items">{orderItemsLabel(order.items)}</p>
                   {order.paymentStatus === 4 && <p className="cashier-card-note">Оплачено частично</p>}
@@ -153,7 +153,7 @@ export function CashierPage() {
               <div className="cashier-card is-paid" key={order.id}>
                 <div className="cashier-card-header">
                   <span className="cashier-card-table">{orderTableLabel(order)}</span>
-                  <span className="cashier-card-amount">{currencyFormatter.format(order.totalAmount)} ₽</span>
+                  <span className="cashier-card-amount">{currencyFormatter.format(order.totalAmount)}</span>
                 </div>
                 <p className="cashier-card-items">{orderItemsLabel(order.items)}</p>
                 <button
@@ -180,7 +180,7 @@ export function CashierPage() {
               <div className="cashier-card is-closed" key={order.id}>
                 <div className="cashier-card-header">
                   <span className="cashier-card-table">{orderTableLabel(order)}</span>
-                  <span className="cashier-card-amount">{currencyFormatter.format(order.totalAmount)} ₽</span>
+                  <span className="cashier-card-amount">{currencyFormatter.format(order.totalAmount)}</span>
                 </div>
                 <p className="cashier-card-items">{orderItemsLabel(order.items)}</p>
                 {order.closedAt && <p className="cashier-card-time">{minutesAgoLabel(order.closedAt)}</p>}

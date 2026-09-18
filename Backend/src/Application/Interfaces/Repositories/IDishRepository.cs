@@ -12,6 +12,10 @@ public interface IDishRepository
 
     Task<Dish?> GetByIdWithCategoryAsync(int id, CancellationToken cancellationToken = default);
 
+    // Bypasses Dish.HasQueryFilter(x => !x.IsDeleted) - GetByIdAsync never returns an
+    // archived (IsDeleted) dish, so restoring one needs this to find it in the first place.
+    Task<Dish?> GetByIdIncludingDeletedAsync(int id, CancellationToken cancellationToken = default);
+
     Task AddAsync(Dish dish, CancellationToken cancellationToken = default);
 
     void Update(Dish dish);

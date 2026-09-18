@@ -29,7 +29,7 @@ import './DashboardPage.css';
 
 const currencyFormatter = new Intl.NumberFormat('ru-RU', {
   style: 'currency',
-  currency: 'RUB',
+  currency: 'TJS',
   maximumFractionDigits: 0,
 });
 

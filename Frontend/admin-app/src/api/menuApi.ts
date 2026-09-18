@@ -114,3 +114,7 @@ export function updateDishAvailability(id: number, isAvailable: boolean): Promis
 export function archiveDish(id: number): Promise<void> {
   return apiClient.delete<void>(`/dishes/${id}`);
 }
+
+export function restoreDish(id: number): Promise<void> {
+  return apiClient.post<void>(`/dishes/${id}/restore`);
+}

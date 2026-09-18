@@ -27,7 +27,7 @@ import './TablePanel.css';
 
 const TABLES_QUERY_KEY = ['tables', 'waiter'];
 const ORDERS_QUERY_KEY = ['orders', 'waiter'];
-const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'TJS', maximumFractionDigits: 0 });
 
 const CANCEL_REASONS = ['Ошибка официанта', 'Клиент отменил', 'Нет продукта', 'Другое'];
 

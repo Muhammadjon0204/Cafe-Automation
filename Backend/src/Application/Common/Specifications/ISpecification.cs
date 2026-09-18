@@ -23,4 +23,10 @@ public interface ISpecification<T>
     int Take { get; }
 
     bool IsPagingEnabled { get; }
+
+    // Opt-in escape hatch for a soft-delete query filter (e.g. Dish's HasQueryFilter(x =>
+    // !x.IsDeleted) - see DishConfiguration). That filter applies to every query against the
+    // DbSet regardless of what Criteria says, so a spec whose own Criteria already asks for
+    // deleted rows (an admin "include archived" view) still needs this to actually see them.
+    bool IgnoreQueryFilters { get; }
 }

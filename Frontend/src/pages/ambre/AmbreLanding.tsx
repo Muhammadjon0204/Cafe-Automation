@@ -18,7 +18,7 @@ import {
 } from './api';
 import './AmbreLanding.css';
 
-const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'TJS', maximumFractionDigits: 0 });
 
 function defaultReservationDateTime(): string {
   const inTwoHours = new Date(Date.now() + 2 * 60 * 60 * 1000);

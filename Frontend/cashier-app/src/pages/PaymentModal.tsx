@@ -8,7 +8,7 @@ import { pushToast } from '../components/toast/toastBus';
 import { errorMessage } from '../lib/errorMessage';
 import './PaymentModal.css';
 
-const currencyFormatter = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'TJS', maximumFractionDigits: 0 });
 const METHODS = [1, 2, 3, 4];
 
 interface PaymentModalProps {
@@ -76,7 +76,7 @@ export function PaymentModal({ order, onClose }: PaymentModalProps) {
         <div className="payment-modal-totals">
           <div className="payment-modal-total-row">
             <span>Итого</span>
-            <span>{currencyFormatter.format(order.totalAmount)} ₽</span>
+            <span>{currencyFormatter.format(order.totalAmount)}</span>
           </div>
           {paymentsQuery.isLoading ? (
             <Skeleton height={16} width={140} />
@@ -84,13 +84,13 @@ export function PaymentModal({ order, onClose }: PaymentModalProps) {
             paidSoFar > 0 && (
               <div className="payment-modal-total-row is-muted">
                 <span>Уже оплачено</span>
-                <span>{currencyFormatter.format(paidSoFar)} ₽</span>
+                <span>{currencyFormatter.format(paidSoFar)}</span>
               </div>
             )
           )}
           <div className="payment-modal-total-row is-remaining">
             <span>К оплате</span>
-            <span>{currencyFormatter.format(remaining)} ₽</span>
+            <span>{currencyFormatter.format(remaining)}</span>
           </div>
         </div>
 

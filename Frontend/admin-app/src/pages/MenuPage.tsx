@@ -9,6 +9,7 @@ import {
   getCategories,
   getDishes,
   getDishesAdmin,
+  restoreDish,
   updateCategory,
   updateDish,
   updateDishAvailability,
@@ -192,6 +193,16 @@ export function MenuPage() {
     onError: (error) => pushToast(errorMessage(error, 'Не удалось архивировать блюдо.'), { variant: 'error' }),
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: (id: number) => restoreDish(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: DISHES_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      pushToast('Блюдо восстановлено и снова доступно в меню.');
+    },
+    onError: (error) => pushToast(errorMessage(error, 'Не удалось восстановить блюдо.'), { variant: 'error' }),
+  });
+
   const availabilityMutation = useMutation({
     mutationFn: ({ id, isAvailable }: { id: number; isAvailable: boolean }) => updateDishAvailability(id, isAvailable),
     onMutate: async ({ id, isAvailable }) => {
@@ -287,6 +298,7 @@ export function MenuPage() {
       onEdit={() => setEditingDish(dish)}
       onDuplicate={() => duplicateMutation.mutate(dish)}
       onArchive={() => setArchiveTarget(dish)}
+      onRestore={() => restoreMutation.mutate(dish.id)}
     />
   );
 

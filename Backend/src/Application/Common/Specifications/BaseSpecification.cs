@@ -33,6 +33,13 @@ public abstract class BaseSpecification<T> : ISpecification<T>
 
     public bool IsPagingEnabled { get; private set; }
 
+    public bool IgnoreQueryFilters { get; private set; }
+
+    protected void ApplyIgnoreQueryFilters()
+    {
+        IgnoreQueryFilters = true;
+    }
+
     protected void AddInclude(Expression<Func<T, object?>> includeExpression)
     {
         Includes.Add(includeExpression);

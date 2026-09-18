@@ -53,7 +53,7 @@ public class DishService : IDishService
             return Result<PagedResult<GetDishAdminDto>>.Failure("Forbidden.");
         }
 
-        var spec = new DishFilterSpecification(filter);
+        var spec = new DishFilterSpecification(filter, includeDeleted: true);
         var pagedDishes = await _dishRepository.GetAsync(spec, cancellationToken);
         var result = pagedDishes.MapTo(MapToAdminDto);
         return Result<PagedResult<GetDishAdminDto>>.Success(result);
@@ -141,6 +141,24 @@ public class DishService : IDishService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<GetDishDto>.Success(MapToDto(dish), "Dish updated.");
+    }
+
+    public async Task<Result> RestoreAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var dish = await _dishRepository.GetByIdIncludingDeletedAsync(id, cancellationToken);
+        if (dish == null || !dish.IsDeleted)
+        {
+            return Result.Failure("Archived dish not found.");
+        }
+
+        dish.IsDeleted = false;
+        dish.IsAvailable = true;
+        dish.Status = DishStatus.Active;
+        dish.UpdatedAt = DateTime.UtcNow;
+
+        _dishRepository.Update(dish);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success("Dish restored.");
     }
 
     public async Task<Result> UpdateAvailabilityAsync(int id, UpdateDishAvailabilityDto dto, CancellationToken cancellationToken = default)

@@ -3,7 +3,7 @@ import type { CafeTableLayout } from '../../api/tablesApi';
 import { Skeleton } from '../../components/Skeleton';
 import { minutesAgoLabel, orderItemsLabel, orderStatusLabel } from '../../domain/orders';
 
-const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'TJS', maximumFractionDigits: 0 });
 
 interface TableOrderSummaryProps {
   table: CafeTableLayout;

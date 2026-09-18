@@ -8,7 +8,7 @@ public static class SpecificationEvaluator<T> where T : class
 {
     public static IQueryable<T> GetQuery(IQueryable<T> inputQuery, ISpecification<T> spec)
     {
-        var query = inputQuery;
+        var query = spec.IgnoreQueryFilters ? inputQuery.IgnoreQueryFilters() : inputQuery;
 
         if (spec.Criteria != null)
         {
@@ -37,7 +37,8 @@ public static class SpecificationEvaluator<T> where T : class
 
     public static async Task<PagedResult<T>> GetPagedResultAsync(IQueryable<T> inputQuery, ISpecification<T> spec, CancellationToken cancellationToken = default)
     {
-        var filteredQuery = spec.Criteria != null ? inputQuery.Where(spec.Criteria) : inputQuery;
+        var baseQuery = spec.IgnoreQueryFilters ? inputQuery.IgnoreQueryFilters() : inputQuery;
+        var filteredQuery = spec.Criteria != null ? baseQuery.Where(spec.Criteria) : baseQuery;
         var totalCount = await filteredQuery.CountAsync(cancellationToken);
 
         var items = await GetQuery(inputQuery, spec).ToListAsync(cancellationToken);

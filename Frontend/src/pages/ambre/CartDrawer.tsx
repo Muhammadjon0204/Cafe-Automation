@@ -17,7 +17,7 @@ interface CartDrawerProps {
   onOrderPlaced: () => void;
 }
 
-const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'TJS', maximumFractionDigits: 0 });
 
 export function CartDrawer({ lines, onClose, onIncrement, onDecrement, onRemove, onOrderPlaced }: CartDrawerProps) {
   const { requireAuth } = useAuth();

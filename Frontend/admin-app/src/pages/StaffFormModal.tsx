@@ -159,7 +159,7 @@ export function StaffFormModal({ staff, showSalary, busy, serverError, onCancel,
             </label>
             {showSalary && (
               <label className="crud-form-field">
-                <span>Зарплата, ₽</span>
+                <span>Зарплата, TJS</span>
                 <input type="number" step="0.01" {...register('salary')} />
                 {errors.salary && <span className="crud-form-error">{errors.salary.message}</span>}
               </label>

@@ -17,6 +17,8 @@ public interface IDishService
 
     Task<Result<GetDishDto>> UpdateAsync(int id, UpdateDishDto dto, CancellationToken cancellationToken = default);
 
+    Task<Result> RestoreAsync(int id, CancellationToken cancellationToken = default);
+
     Task<Result> UpdateAvailabilityAsync(int id, UpdateDishAvailabilityDto dto, CancellationToken cancellationToken = default);
 
     Task<Result> DeleteAsync(int id, CancellationToken cancellationToken = default);
